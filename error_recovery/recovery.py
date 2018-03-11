@@ -35,12 +35,12 @@ class RecoveryFramework(object):
         self.history = []
         index = 0
 
-        def patch_parse_fn(fn):
+        def patch_p_fn(fn):
 
             @functools.wraps(fn)
-            def wrapper(parse_self, p):
+            def wrapper(parser_self, p):
                 nonlocal index
-                self.history.append(copy.deepcopy(parse_self))
+                self.history.append(copy.deepcopy(parser_self))
                 print("{}:{}, {}".format(index, fn.__name__, self.history[-1].cparser.symstack))
                 index += 1
                 return fn(p)
@@ -50,8 +50,20 @@ class RecoveryFramework(object):
 
         for k, v in parse_fn_tuple_list:
             # print("{}:{}".format(k, v))
-            new_method = types.MethodType(patch_parse_fn(v), self.parser)
+            new_method = types.MethodType(patch_p_fn(v), self.parser)
             setattr(self.parser, k, new_method)
+
+        def patch_parse_fn(parse):
+            @functools.wraps(self.parser.parse)
+            def patched_parse(parser_self, *args, **kwargs):
+                nonlocal index
+                index = 0
+                self.history = []
+                return parse(*args, **kwargs)
+
+            return patched_parse
+
+        self.parser.parse = types.MethodType(patch_parse_fn(self.parser.parse), self.parser)
 
         self.parser.build(
             lex_optimize,
