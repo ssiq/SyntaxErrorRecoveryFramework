@@ -52,9 +52,10 @@ import types
 import weakref
 from copyreg import dispatch_table
 import re
+import functools
 
-
-pattern_type = type(re.compile(r'abc'))
+# the type in this list will not copy and just use the original object
+ignore_type_list = [type(re.compile(r'abc')), type(re.match(r'abc', 'abc'))]
 
 
 class Error(Exception):
@@ -155,7 +156,8 @@ def deepcopy(x, memo=None, _nil=[]):
         y = copier(x, memo)
     else:
         try:
-            issc = issubclass(cls, type) or issubclass(cls, pattern_type)
+            issc = issubclass(cls, type)
+            issc = functools.reduce(lambda x, y: x or y, map(lambda x: issubclass(cls, x), ignore_type_list), issc)
         except TypeError: # cls is not a class (old Boost; see SF #502085)
             issc = 0
         if issc:

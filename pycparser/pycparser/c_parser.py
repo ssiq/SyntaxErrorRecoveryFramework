@@ -20,13 +20,39 @@ from .ast_transforms import fix_switch_cases
 class CParser(PLYParser):
     def __init__(
             self,
-            lex_optimize=True,
-            lexer=CLexer,
-            lextab='pycparser.lextab',
-            yacc_optimize=True,
-            yacctab='pycparser.yacctab',
-            yacc_debug=False,
-            taboutputdir=''):
+            ):
+        rules_with_opt = [
+            'abstract_declarator',
+            'assignment_expression',
+            'declaration_list',
+            'declaration_specifiers_no_type',
+            'designation',
+            'expression',
+            'identifier_list',
+            'init_declarator_list',
+            'id_init_declarator_list',
+            'initializer_list',
+            'parameter_type_list',
+            'block_item_list',
+            'type_qualifier_list',
+            'struct_declarator_list'
+        ]
+
+        for rule in rules_with_opt:
+            self._create_opt_rule(rule)
+
+
+
+
+    def build(self,
+              lex_optimize=True,
+              lexer=CLexer,
+              lextab='pycparser.lextab',
+              yacc_optimize=True,
+              yacctab='pycparser.yacctab',
+              yacc_debug=False,
+              taboutputdir=''
+              ):
         """ Create a new CParser.
 
             Some arguments for controlling the debug/optimization
@@ -76,6 +102,7 @@ class CParser(PLYParser):
                 Set this parameter to control the location of generated
                 lextab and yacctab files.
         """
+
         self.clex = lexer(
             error_func=self._lex_error_func,
             on_lbrace_func=self._lex_on_lbrace_func,
@@ -87,26 +114,6 @@ class CParser(PLYParser):
             lextab=lextab,
             outputdir=taboutputdir)
         self.tokens = self.clex.tokens
-
-        rules_with_opt = [
-            'abstract_declarator',
-            'assignment_expression',
-            'declaration_list',
-            'declaration_specifiers_no_type',
-            'designation',
-            'expression',
-            'identifier_list',
-            'init_declarator_list',
-            'id_init_declarator_list',
-            'initializer_list',
-            'parameter_type_list',
-            'block_item_list',
-            'type_qualifier_list',
-            'struct_declarator_list'
-        ]
-
-        for rule in rules_with_opt:
-            self._create_opt_rule(rule)
 
         self.cparser = yacc.yacc(
             module=self,
