@@ -1,4 +1,5 @@
 from pycparser.pycparser.c_parser import CParser
+from .buffered_clex import BufferedCLex
 from pycparser.pycparser.c_lexer import CLexer
 
 import types
@@ -22,7 +23,7 @@ class RecoveryFramework(object):
     """
     def __init__(self,
                  lex_optimize=True,
-                 lexer=CLexer,
+                 lexer=BufferedCLex,
                  lextab='pycparser.lextab',
                  yacc_optimize=True,
                  yacctab='pycparser.yacctab',
