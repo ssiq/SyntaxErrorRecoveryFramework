@@ -29,3 +29,12 @@ def maintain_function_co_firstlineno(ori_fn):
         return fn
 
     return wrapper
+
+
+def build_code_string_from_lex_tokens(tokens):
+    """
+    This function build the original code string from the token iterator
+    :param tokens: Token iterator
+    :return: code string
+    """
+    pass
