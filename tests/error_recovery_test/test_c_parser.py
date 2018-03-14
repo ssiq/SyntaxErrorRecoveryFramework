@@ -5,13 +5,36 @@ import re
 import os, sys
 import unittest
 
+import functools
+
+from error_recovery.buffered_clex import BufferedCLex
+
 sys.path[0:0] = ['.', '..']
 
-from error_recovery.recovery import RecoveryFramework
+from error_recovery.recovery import BaseRecoveryFramework
 from pycparser.pycparser.c_ast import *
 from pycparser.pycparser.c_parser import CParser, Coord, ParseError
 
-_c_parser = RecoveryFramework(
+
+class TestBaseRecoveryFramework(BaseRecoveryFramework):
+
+    def __init__(self, lex_optimize=True, lexer=BufferedCLex, lextab='pycparser.lextab', yacc_optimize=True,
+                 yacctab='pycparser.yacctab', yacc_debug=False, taboutputdir=''):
+        super().__init__(lex_optimize, lexer, lextab, yacc_optimize, yacctab, yacc_debug, taboutputdir)
+
+    def _p_error(self, p):
+        pass
+
+    def patch_p_error_fn(self):
+        original_p_error = self.parser.p_error
+
+        @functools.wraps(self.parser.p_error)
+        def wrapper(parse_self, p):
+            return original_p_error(p)
+        return wrapper
+
+
+_c_parser = TestBaseRecoveryFramework(
                 lex_optimize=False,
                 yacc_debug=True,
                 yacc_optimize=False,
