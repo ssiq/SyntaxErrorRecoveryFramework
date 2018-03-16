@@ -147,35 +147,48 @@ def modify_lex_tokens_offset(ori_tokens: list, action_type, position, token=None
     if isinstance(action_type, int):
         action_type = ActionType(action_type)
 
-    if position < 0 or (action_type == ActionType.INSERT and position > len(ori_tokens)) \
-            or (action_type != ActionType.INSERT and position >= len(ori_tokens)):
+    if position < 0 or (action_type == ActionType.INSERT_BEFORE and position > len(ori_tokens)) \
+            or (action_type != ActionType.INSERT_BEFORE and position >= len(ori_tokens)):
         raise Exception('action position error. ori_tokens len: {}, action_type: {}, position: {}\n ' +
                         'token.type: {}, token.value: {}'.format(len(ori_tokens), action_type, position,
                                                                  token.type, token.value))
 
     new_tokens = ori_tokens
-    if action_type is not ActionType.INSERT:
+    if action_type is not ActionType.INSERT_BEFORE and action_type is not ActionType.INSERT_AFTER:
         new_tokens = new_tokens[:position] + new_tokens[position+1:]
         bias = 0 - len(ori_tokens[position].value) + 1
         new_tokens = modify_bias(new_tokens, position, bias)
 
     if action_type is not ActionType.DELETE:
-        token = set_token_pos(new_tokens, position, token)
-        new_tokens = new_tokens[:position] + [token] + new_tokens[position:]
+        token, token_index = set_token_position_info(new_tokens, action_type, position, token)
+        new_tokens = new_tokens[:token_index] + [token] + new_tokens[token_index:]
         bias = len(token.value) + 2
-        new_tokens = modify_bias(new_tokens, position + 1, bias)
+        new_tokens = modify_bias(new_tokens, token_index + 1, bias)
     return new_tokens
 
 
-def set_token_pos(tokens, position, token):
-    if position < len(tokens):
+def set_token_position_info(tokens, action_type, position, token):
+    if position < len(tokens) and action_type is not ActionType.INSERT_AFTER:
         according_token = tokens[position]
-        token.lineno = according_token.lineno
-        token.lexpos = according_token.lexpos + 1
+        token = set_token_line_pos_accroding_before(according_token, token)
     else:
-        according_token = tokens[-1]
-        token.lineno = according_token.lineno
-        token.lexpos = according_token.lexpos + len(according_token.value) + 1
+        if action_type is ActionType.INSERT_BEFORE:
+            position -= 1
+        according_token = tokens[position]
+        token = set_token_line_pos_accroding_after(according_token, token)
+        position += 1
+    return token, position
+
+
+def set_token_line_pos_accroding_before(according_token, token):
+    token.lineno = according_token.lineno
+    token.lexpos = according_token.lexpos + 1
+    return token
+
+
+def set_token_line_pos_accroding_after(according_token, token):
+    token.lineno = according_token.lineno
+    token.lexpos = according_token.lexpos + len(according_token.value) + 1
     return token
 
 
