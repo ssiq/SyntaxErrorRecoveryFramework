@@ -2,6 +2,8 @@ from enum import Enum
 
 
 class ActionType(Enum):
-    CHANGE = 0
-    INSERT = 1
-    DELETE = 2
+    NORMAL = 0
+    INSERT_BEFORE = 1
+    INSERT_AFTER = 2
+    DELETE = 3
+    CHANGE = 4
