@@ -4,7 +4,7 @@ from subprocess import Popen, PIPE
 import typing
 import shutil
 
-import config
+import configobj
 
 from common.action_constants import ActionType
 from pycparser.pycparser.ply.lex import LexToken
@@ -130,7 +130,28 @@ def build_code_string_from_lex_tokens(tokens):
     :param tokens: Token iterator
     :return: code string
     """
-    pass
+
+
+    lex_tokens = iter(tokens)
+    code_re = ""
+    lino_pre = 0
+    lexpos_pre = 0
+    lexpos_temp = 0
+    lenth_v = 0
+    for token in lex_tokens:
+        lino_temp = token.lineno
+        if (lino_temp != lino_pre):
+            code_re = code_re + "\n"
+            lenth_v = lenth_v + 1
+        else:
+            code_re = code_re
+        lino_pre = token.lineno
+        lexpos_temp = token.lexpos
+        code_re = code_re + " " * (lexpos_temp - lexpos_pre - lenth_v)
+        code_re = code_re + str(token.value)
+        lexpos_pre = lexpos_temp
+        lenth_v = len(str(token.value))
+    return code_re
 
 
 def modify_lex_tokens_offset(ori_tokens: list, action_type, position, token=None):
