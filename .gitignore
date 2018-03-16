@@ -16,4 +16,6 @@ parser.out
 .tox
 utils/z.c
 *.egg-info
+tmp/
+
 
