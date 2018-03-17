@@ -53,8 +53,17 @@ class BaseRecoveryFramework(ABC):
             taboutputdir
         )
 
+        self.parser.clex.add_history_fn = self._create_add_history_fn()
+
     def __getattr__(self, item):
         return getattr(self.parser, item)
+
+    def _create_add_history_fn(self):
+        def add_history():
+            self.history.append(copy.deepcopy(self.parser))
+            print("{}:{}".format(self.index, self.history[-1].cparser.symstack))
+            self.index += 1
+        return add_history
 
     def patch_parse_fn(self, parse):
         @functools.wraps(self.parser.parse)
@@ -68,9 +77,6 @@ class BaseRecoveryFramework(ABC):
     def patch_p_fn(self, fn):
         @functools.wraps(fn)
         def wrapper(parser_self, p):
-            self.history.append(copy.deepcopy(parser_self))
-            print("{}:{}, {}".format(self.index, fn.__name__, self.history[-1].cparser.symstack))
-            self.index += 1
             return fn(p)
 
         # assert wrapper.__name__ == fn.__name__
