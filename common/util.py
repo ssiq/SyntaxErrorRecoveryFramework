@@ -130,8 +130,6 @@ def build_code_string_from_lex_tokens(tokens):
     :param tokens: Token iterator
     :return: code string
     """
-
-
     lex_tokens = iter(tokens)
     code_re = ""
     lino_pre = 0

@@ -2,6 +2,7 @@ import unittest
 
 from common import util
 import os
+from pycparser.pycparser.c_lexer import CLexer
 
 
 class UTest(unittest.TestCase):
@@ -197,3 +198,29 @@ int main()
 }
 """
         self.assertEqual(util.preprocess(os.path.join('test_files', 'main.c'), ), expected_result, "preprocess failed")
+
+    def error_func(self, msg, line, column):
+        self.fail(msg)
+
+    def type_lookup_func(self, typ):
+        if typ.startswith('mytype'):
+            return True
+        else:
+            return False
+
+    def test_build_code_string_from_lex_tokens(self):
+        clex = CLexer(self.error_func, lambda: None, lambda: None, self.type_lookup_func)
+        clex.build(optimize=False)
+        data = '''
+            aa aaa
+            bbb bb+c
+                '''
+        clex.input(data)
+        token_in = list()
+        while True:
+            tok = clex.token()
+            if not tok:
+                break
+            token_in.append(tok)
+
+        self.assertEqual(util.build_code_string_from_lex_tokens(token_in), data)

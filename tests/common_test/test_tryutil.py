@@ -1,71 +1,37 @@
 import unittest
 from common import util
 import os
+from pycparser.pycparser.c_lexer import CLexer
 
-import ply.lex as lex
 
+class TestUnit(unittest.TestCase):
 
-class UTest(unittest.TestCase):
+    def error_func(self, msg, line, column):
+        self.fail(msg)
 
-        tokens = (
-            'NUMBER',
-            'PLUS',
-            'MINUS',
-            'TIMES',
-            'DIVIDE',
-            'LPAREN',
-            'RPAREN',
-        )
+    def type_lookup_func(self, typ):
+        if typ.startswith('mytype'):
+            return True
+        else:
+            return False
 
-        # Regular expression rules for simple tokens
-        t_PLUS = r'\+'
-        t_MINUS = r'-'
-        t_TIMES = r'\*'
-        t_DIVIDE = r'/'
-        t_LPAREN = r'\('
-        t_RPAREN = r'\)'
-
-        # A regular expression rule with some action code
-        def t_NUMBER(t):
-            r'\d+'
-            t.value = int(t.value)
-            return t
-
-        # Define a rule so we can track line numbers
-        def t_newline(t):
-            r'\n+'
-            t.lexer.lineno += len(t.value)
-
-        # A string containing ignored characters (spaces and tabs)
-        t_ignore = ' \t'
-
-        # Error handling rule
-        def t_error(t):
-            print("Illegal character '%s'" % t.value[0])
-            t.lexer.skip(1)
-
-        # Build the lexer
-        lexer = lex.lex()
-
-        # Test it out
+    def test_build_code_string_from_lex_tokens(self):
+        clex = CLexer(self.error_func, lambda: None, lambda: None, self.type_lookup_func)
+        clex.build(optimize=False)
         data = '''
-        3 + 4 * 10
-          + -20 *2
-        '''
+            aa aaa
+            bbb bb+c'''
+        clex.input(data)
         token_in = list()
-
-        # Give the lexer some input
-        lexer.input(data)
-
-        # Tokenize
         while True:
-            tok = lexer.token()
+            tok = clex.token()
             if not tok:
-                break  # No more input
+                break
             token_in.append(tok)
 
-        print(token_in)
+        self.assertEqual(util.build_code_string_from_lex_tokens(token_in), data)
 
+'''
         def build_code_string_from_lex_tokens(tokens):
             """
             This function build the original code string from the token iterator
@@ -94,3 +60,4 @@ class UTest(unittest.TestCase):
             return code_re
 
         print(build_code_string_from_lex_tokens(token_in))
+'''
