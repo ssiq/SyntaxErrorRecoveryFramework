@@ -211,10 +211,13 @@ int main()
     def test_build_code_string_from_lex_tokens(self):
         clex = CLexer(self.error_func, lambda: None, lambda: None, self.type_lookup_func)
         clex.build(optimize=False)
+
+        '''
+        '''
+
         data = '''
             aa aaa
-            bbb bb+c
-                '''
+            bbb bb+c'''
         clex.input(data)
         token_in = list()
         while True:
