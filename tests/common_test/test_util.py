@@ -213,6 +213,7 @@ int main()
         clex.build(optimize=False)
 
         '''
+        if the test data contain  \n at the end of the line ,fail
         '''
 
         data = '''
