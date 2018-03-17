@@ -7,3 +7,9 @@ class ActionType(Enum):
     INSERT_AFTER = 2
     DELETE = 3
     CHANGE = 4
+
+class TokenType(Enum):
+    SYSTEM = 0
+    NORMAL = 1
+    INSERT = 2
+    CHANGE = 3

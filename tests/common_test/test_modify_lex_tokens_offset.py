@@ -1,12 +1,14 @@
 import unittest
 import copy
 import functools
+import os
 
 from pycparser.pycparser.ply.lex import LexToken
 from error_recovery.recovery import BaseRecoveryFramework
 from common.util import modify_lex_tokens_offset
 from common.action_constants import ActionType
 from error_recovery.buffered_clex import BufferedCLex
+from common import util
 
 
 class TestBaseRecoveryFramework(BaseRecoveryFramework):
@@ -123,16 +125,21 @@ class Test(unittest.TestCase):
 
     def test_mark_tokens(self):
         text = r"""
-                #include <stdio.h>
+                #include<math.h>
+                
                 void func(void)
                 {
                   x = 1;
                 }
                 """
 
-        f = open('test.txt', 'w')
+        f = open('test.c', 'w')
         f.write(text)
         f.close()
+
+        # res = util.preprocess(os.path.join('test_files', 'main.c'), )[0]
+        preprocess_code = util.preprocess('test.c', )
+        print('res: ', preprocess_code)
 
         c_parser = TestBaseRecoveryFramework(
             lex_optimize=False,
@@ -140,9 +147,19 @@ class Test(unittest.TestCase):
             yacc_optimize=False,
             yacctab='yacctab')
 
-        from pycparser.pycparser import parse_file
-
-        root = parse_file('test.txt', use_cpp=True, parser=c_parser)
-
+        root = c_parser.parse(preprocess_code)
         ori_tokens = list(zip(*c_parser.clex._tokens_buffer))[0]
         print(ori_tokens)
+
+        c_parser.parser.clex.input(preprocess_code)
+        ori_tokens = c_parser.parser.clex._tokens_buffer
+        print(ori_tokens)
+
+
+
+        from pycparser.pycparser import parse_file
+
+        # root = parse_file('test.txt', use_cpp=True, parser=c_parser)
+
+        # ori_tokens = list(zip(*c_parser.clex._tokens_buffer))[0]
+        # print(ori_tokens)
