@@ -4,7 +4,7 @@ from subprocess import Popen, PIPE
 import typing
 import shutil
 
-import configobj
+import config
 
 from common.action_constants import ActionType
 from pycparser.pycparser.ply.lex import LexToken

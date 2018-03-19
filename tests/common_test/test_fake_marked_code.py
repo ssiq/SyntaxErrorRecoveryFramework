@@ -48,22 +48,23 @@ class Test_Fake_Marked_Code(unittest.TestCase):
         int main()
         {
             a=1, b==2;
-            printf("%d\n", add(a, b))
-        }
-        }"""]
+            printf("%d\n", add(a, b)))
+        
+        """]
         source_names = ['main.c']
         self.mark_code = MarkedCode(headers, header_names, sources, source_names)
 
         self.tokens = tokenize_marked_preprocessed_code(self.c_parser.clex, self.mark_code)
-        actions_list = [[] for i in range(len(self.tokens))]
-        actions_list[-1] += [(ActionType.DELETE, None)]
-        actions_list[-3] += [ActionType.INSERT_AFTER, ';']
-        actions_list[-16] += [ActionType.CHANGE, '=']
-        actions_list[-21] += [ActionType.INSERT_BEFORE, 'int']
-        print(self.tokens[-1])
-        print(self.tokens[-3])
-        print(self.tokens[-16])
-        print(self.tokens[-21])
+        actions_list = [[] for i in range(len(self.tokens) + 1)]
+        actions_list[-2] += [(ActionType.DELETE, None)]
+        actions_list[-1] += [(ActionType.INSERT_BEFORE, ';')]
+        actions_list[-1] += [(ActionType.INSERT_BEFORE, '}')]
+        actions_list[-16] += [(ActionType.CHANGE, '=')]
+        actions_list[-21] += [(ActionType.INSERT_BEFORE, 'int')]
+        print(None, actions_list[-1])
+        print(self.tokens[-1], actions_list[-2])
+        print(self.tokens[-15], actions_list[-16])
+        print(self.tokens[-20], actions_list[-21])
 
 
     def test_blank(self):
