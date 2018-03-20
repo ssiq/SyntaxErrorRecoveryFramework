@@ -1,6 +1,7 @@
+from common.action_constants import ActionType
+from common.util import modify_lex_tokens_offset
 from pycparser.pycparser.c_parser import CParser
 from .buffered_clex import BufferedCLex
-from pycparser.pycparser.c_lexer import CLexer
 
 import types
 import inspect
@@ -18,6 +19,26 @@ def create_is_parse_fn():
     return is_p_fn
 
 
+class History(object):
+    def __init__(self):
+        self.history = []
+
+    def add(self, o):
+        self.history.append(o)
+
+    def _check_no_empty(self):
+        if len(self.history) == 0:
+            raise ValueError("The history is empty")
+
+    def revert(self):
+        self._check_no_empty()
+        return self.history.pop()
+
+    def now(self):
+        self._check_no_empty()
+        return self.history[-1]
+
+
 class BaseRecoveryFramework(ABC):
     def __init__(self,
                  lex_optimize=True,
@@ -31,7 +52,7 @@ class BaseRecoveryFramework(ABC):
         self.parser = CParser()
         is_parse_fn = create_is_parse_fn()
         parse_fn_tuple_list = filter(lambda x: is_parse_fn(x[0]) and x[0] != "p_error", inspect.getmembers(self.parser))
-        self.history = []
+        self.history = History()
         self.index = 0
 
         for k, v in parse_fn_tuple_list:
@@ -60,8 +81,8 @@ class BaseRecoveryFramework(ABC):
 
     def _create_add_history_fn(self):
         def add_history():
-            self.history.append(copy.deepcopy(self.parser))
-            print("{}:{}".format(self.index, self.history[-1].cparser.symstack))
+            self.history.add(copy.deepcopy(self.parser))
+            print("{}:{}".format(self.index, self.history.now().cparser.symstack))
             self.index += 1
         return add_history
 
@@ -69,7 +90,7 @@ class BaseRecoveryFramework(ABC):
         @functools.wraps(self.parser.parse)
         def patched_parse(parser_self, *args, **kwargs):
             self.index = 0
-            self.history = []
+            self.history = History()
             return parse(*args, **kwargs)
 
         return patched_parse
@@ -82,6 +103,15 @@ class BaseRecoveryFramework(ABC):
         # assert wrapper.__name__ == fn.__name__
         # assert wrapper.__doc__ == fn.__doc__
         return wrapper
+
+    def _revert(self):
+        self.parser = self.history.revert()
+
+    def _apply_action(self, action, token):
+        clex = self.parser.clex
+        modify_lex_tokens_offset(clex.tokens_buffer, action, clex.tokens_index, token)
+        if action == ActionType.DELETE:
+            clex.tokens_index = clex.tokens_index - 1
 
     @abstractmethod
     def _p_error(self, p):

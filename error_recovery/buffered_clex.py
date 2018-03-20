@@ -28,6 +28,18 @@ class BufferedCLex(CLexer):
     def is_in_system_header(self, _is_in_system_header):
         self._is_in_system_header = _is_in_system_header
 
+    @property
+    def tokens_index(self):
+        return self._tokens_index
+
+    @tokens_index.setter
+    def tokens_index(self, i):
+        self._tokens_index = i
+
+    @property
+    def tokens_buffer(self):
+        return self._tokens_buffer
+
     def token(self):
         if self._tokens_index < len(self._tokens_buffer):
             self.last_token = self._tokens_buffer[self._tokens_index][0]
