@@ -98,6 +98,9 @@ class BaseRecoveryFramework(ABC):
     def patch_p_fn(self, fn):
         @functools.wraps(fn)
         def wrapper(parser_self, p):
+            self.history.append(copy.deepcopy(parser_self))
+            # print("{}:{}, {}".format(self.index, fn.__name__, self.history[-1].cparser.symstack))
+            self.index += 1
             return fn(p)
 
         # assert wrapper.__name__ == fn.__name__
