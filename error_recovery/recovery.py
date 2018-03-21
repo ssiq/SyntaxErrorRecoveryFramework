@@ -1,5 +1,6 @@
 from common.action_constants import ActionType
 from common.util import modify_lex_tokens_offset
+from error_recovery.marked_code import MarkedCode
 from pycparser.pycparser.c_parser import CParser
 from .buffered_clex import BufferedCLex
 
@@ -39,6 +40,10 @@ class History(object):
         return self.history[-1]
 
 
+class ReTryException(Exception):
+    pass
+
+
 class BaseRecoveryFramework(ABC):
     def __init__(self,
                  lex_optimize=True,
@@ -49,10 +54,25 @@ class BaseRecoveryFramework(ABC):
                  yacc_debug=False,
                  taboutputdir='',
                  ):
+        self._lex_optimize = lex_optimize
+        self._lexer = lexer
+        self._lextab = lextab
+        self._yacc_optimize = yacc_optimize
+        self._yacctab = yacctab
+        self._yacc_debug = yacc_debug
+        self._taboutputdir = taboutputdir
+
+        self._init_parser()
+
+    def __getattr__(self, item):
+        return getattr(self.parser, item)
+
+    def _init_parser(self, new_history=True):
         self.parser = CParser()
         is_parse_fn = create_is_parse_fn()
         parse_fn_tuple_list = filter(lambda x: is_parse_fn(x[0]) and x[0] != "p_error", inspect.getmembers(self.parser))
-        self.history = History()
+        if new_history:
+            self.history = History()
         self.index = 0
 
         for k, v in parse_fn_tuple_list:
@@ -60,24 +80,19 @@ class BaseRecoveryFramework(ABC):
             new_method = types.MethodType(self.patch_p_fn(v), self.parser)
             setattr(self.parser, k, new_method)
 
-        self.parser.parse = types.MethodType(self.patch_parse_fn(self.parser.parse), self.parser)
-
         self.parser.p_error = types.MethodType(self.patch_p_error_fn(), self.parser)
 
         self.parser.build(
-            lex_optimize,
-            lexer,
-            lextab,
-            yacc_optimize,
-            yacctab,
-            yacc_debug,
-            taboutputdir
+            self._lex_optimize,
+            self._lexer,
+            self._lextab,
+            self._yacc_optimize,
+            self._yacctab,
+            self._yacc_debug,
+            self._taboutputdir,
         )
 
         self.parser.clex.add_history_fn = self._create_add_history_fn()
-
-    def __getattr__(self, item):
-        return getattr(self.parser, item)
 
     def _create_add_history_fn(self):
         def add_history():
@@ -86,21 +101,12 @@ class BaseRecoveryFramework(ABC):
             self.index += 1
         return add_history
 
-    def patch_parse_fn(self, parse):
-        @functools.wraps(self.parser.parse)
-        def patched_parse(parser_self, *args, **kwargs):
-            self.index = 0
-            self.history = History()
-            return parse(*args, **kwargs)
-
-        return patched_parse
-
     def patch_p_fn(self, fn):
         @functools.wraps(fn)
         def wrapper(parser_self, p):
-            self.history.append(copy.deepcopy(parser_self))
+            # self.history.add(copy.deepcopy(parser_self))
             # print("{}:{}, {}".format(self.index, fn.__name__, self.history[-1].cparser.symstack))
-            self.index += 1
+            # self.index += 1
             return fn(p)
 
         # assert wrapper.__name__ == fn.__name__
@@ -108,13 +114,23 @@ class BaseRecoveryFramework(ABC):
         return wrapper
 
     def _revert(self):
+        print("revert from the state:{}, index is:{}".format(self.history.now().cparser.symstack,
+                                                             self.history.now().clex.tokens_index))
         self.parser = self.history.revert()
 
     def _apply_action(self, action, token):
         clex = self.parser.clex
-        modify_lex_tokens_offset(clex.tokens_buffer, action, clex.tokens_index, token)
+        index = clex.tokens_index - 1
+        if index == -1:
+            action = ActionType.INSERT_BEFORE
+            index = 0
+        print("buffer:{}".format(clex.tokens_buffer))
+        print("apply action:{},{}".format(action, token))
+        print("index:{}".format(index))
+        tokens_buffer = modify_lex_tokens_offset(clex.tokens_buffer, action, index, token)
         if action == ActionType.DELETE:
             clex.tokens_index = clex.tokens_index - 1
+        return tokens_buffer
 
     @abstractmethod
     def _p_error(self, p):
@@ -125,3 +141,9 @@ class BaseRecoveryFramework(ABC):
         def wrapper(parse_self, p):
             return self._p_error(p)
         return wrapper
+
+    def _parse(self, text: str, filename='', debuglevel=0):
+        return self.parser.parse(str(text), filename=filename, debuglevel=debuglevel)
+
+    def parse(self, text: MarkedCode, filename='', debuglevel=0):
+        self._parse(str(text), filename, debuglevel)

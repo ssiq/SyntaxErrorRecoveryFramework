@@ -1,3 +1,5 @@
+from toolz.sandbox import unzip
+
 from pycparser.pycparser.c_lexer import CLexer
 from pycparser.pycparser.ply.lex import TOKEN
 from common.util import maintain_function_co_firstlineno
@@ -38,7 +40,10 @@ class BufferedCLex(CLexer):
 
     @property
     def tokens_buffer(self):
-        return self._tokens_buffer
+        if len(self._tokens_buffer) == 0:
+            return []
+        else:
+            return list(unzip(self._tokens_buffer)[0])
 
     def token(self):
         if self._tokens_index < len(self._tokens_buffer):
@@ -75,7 +80,6 @@ class BufferedCLex(CLexer):
     def input(self, text):
         super().input(text)
         self._tokens_buffer = self._all_tokens()
-        # print(self._tokens_buffer)
         self._tokens_index = 0
         self.filename = ''
 

@@ -6,24 +6,8 @@ from common.mark_code import mark_token_is_system, tokenize_marked_preprocessed_
 from error_recovery.recovery import BaseRecoveryFramework
 from error_recovery.buffered_clex import BufferedCLex
 from common.action_constants import ActionType
+from error_recovery.train_recovery import TrainRecoveryFramework
 
-
-class TestBaseRecoveryFramework(BaseRecoveryFramework):
-
-    def __init__(self, lex_optimize=True, lexer=BufferedCLex, lextab='pycparser.lextab', yacc_optimize=True,
-                 yacctab='pycparser.yacctab', yacc_debug=False, taboutputdir=''):
-        super().__init__(lex_optimize, lexer, lextab, yacc_optimize, yacctab, yacc_debug, taboutputdir)
-
-    def _p_error(self, p):
-        pass
-
-    def patch_p_error_fn(self):
-        original_p_error = self.parser.p_error
-
-        @functools.wraps(self.parser.p_error)
-        def wrapper(parse_self, p):
-            return original_p_error(p)
-        return wrapper
 
 class Test_Fake_Marked_Code(unittest.TestCase):
 
@@ -34,7 +18,7 @@ class Test_Fake_Marked_Code(unittest.TestCase):
           x = 1;
         }'''
 
-        self.c_parser = TestBaseRecoveryFramework(
+        self.c_parser = TrainRecoveryFramework(
             lex_optimize=False,
             yacc_debug=True,
             yacc_optimize=False,
@@ -68,19 +52,22 @@ class Test_Fake_Marked_Code(unittest.TestCase):
         self.ori_mark_code = MarkedCode(headers, header_names, original_sources, source_names)
         self.ori_tokens = tokenize_marked_preprocessed_code(self.c_parser.clex, self.ori_mark_code)
 
-        actions_list = [[] for i in range(len(self.tokens) + 1)]
-        actions_list[-2] += [(ActionType.DELETE, None)]
-        actions_list[-1] += [(ActionType.INSERT_AFTER, self.ori_tokens[-1])]
-        actions_list[-1] += [(ActionType.INSERT_AFTER, self.ori_tokens[-2])]
-        actions_list[-15] += [(ActionType.CHANGE, self.ori_tokens[-16])]
-        actions_list[-21] += [(ActionType.INSERT_AFTER, self.ori_tokens[-22])]
-        print(self.tokens[-1], actions_list[-1])
-        print(self.tokens[-2], actions_list[-2])
-        print(self.tokens[-15], actions_list[-15])
-        print(self.tokens[-21], actions_list[-21])
-
+        self.actions_list = [[] for i in range(len(self.tokens) + 1)]
+        self.actions_list[-2] += [(ActionType.DELETE, None)]
+        self.actions_list[-1] += [(ActionType.INSERT_AFTER, self.ori_tokens[-1])]
+        self.actions_list[-1] += [(ActionType.INSERT_AFTER, self.ori_tokens[-2])]
+        self.actions_list[-15] += [(ActionType.CHANGE, self.ori_tokens[-16])]
+        self.actions_list[-21] += [(ActionType.INSERT_AFTER, self.ori_tokens[-22])]
+        print(self.tokens[-1], self.actions_list[-1])
+        print(self.tokens[-2], self.actions_list[-2])
+        print(self.tokens[-15], self.actions_list[-15])
+        print(self.tokens[-21], self.actions_list[-21])
 
     def test_blank(self):
-        pass
+        print("length_of_action:{}".format(len(self.actions_list)))
+        self.c_parser._init_parser()
+        self.c_parser.action_list = self.actions_list
+        print(self.c_parser.parse(self.mark_code))
+
 
 
