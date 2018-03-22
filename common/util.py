@@ -139,7 +139,7 @@ def build_code_string_from_lex_tokens(tokens):
     for token in lex_tokens:
         lino_temp = token.lineno
         if (lino_temp != lino_pre):
-            code_re = code_re + "\n"
+            code_re = code_re + "\n"*(lino_temp-lino_pre)
             lenth_v = lenth_v + 1
         else:
             code_re = code_re
@@ -149,6 +149,8 @@ def build_code_string_from_lex_tokens(tokens):
         code_re = code_re + str(token.value)
         lexpos_pre = lexpos_temp
         lenth_v = len(str(token.value))
+
+    print(code_re)
     return code_re
 
 

@@ -215,10 +215,9 @@ int main()
         '''
         if the test data contain  \n at the end of the line ,fail
         '''
-
-        data = '''
-            aa aaa
-            bbb bb+c'''
+        f = open("test_files/main.c")
+        data =f.read()
+        f.close()
         clex.input(data)
         token_in = list()
         while True:
