@@ -1,22 +1,6 @@
-import unittest
-
-from common import util
-import os
-from pycparser.pycparser.c_lexer import CLexer
-
-
-class UTest(unittest.TestCase):
-    def testPreprocess(self):
-        expected_result = r"""# 1 "test_files\\main.c"
-# 1 "<built-in>"
-# 1 "<command-line>"
-# 1 "test_files\\main.c"
-# 1 "D:\\Machine Learning\\SyntaxErrorRecoveryFramework\\pycparser\\utils\\fake_libc_include/stdio.h" 1
-# 1 "D:\\Machine Learning\\SyntaxErrorRecoveryFramework\\pycparser\\utils\\fake_libc_include/_fake_defines.h" 1
-# 41 "D:\\Machine Learning\\SyntaxErrorRecoveryFramework\\pycparser\\utils\\fake_libc_include/_fake_defines.h"
 typedef int va_list;
-# 2 "D:\\Machine Learning\\SyntaxErrorRecoveryFramework\\pycparser\\utils\\fake_libc_include/stdio.h" 2
-# 1 "D:\\Machine Learning\\SyntaxErrorRecoveryFramework\\pycparser\\utils\\fake_libc_include/_fake_typedefs.h" 1
+
+
 
 
 
@@ -188,42 +172,13 @@ typedef struct MirDisplayConfig MirDisplayConfig;
 typedef struct xcb_connection_t xcb_connection_t;
 typedef uint32_t xcb_window_t;
 typedef uint32_t xcb_visualid_t;
-# 3 "D:\\Machine Learning\\SyntaxErrorRecoveryFramework\\pycparser\\utils\\fake_libc_include/stdio.h" 2
-# 2 "test_files\\main.c" 2
 
-int main()
-{
-    printf("a test\n");
-    return 0;
-}
-"""
-        self.assertEqual(util.preprocess(os.path.join('test_files', 'main.c'), ), expected_result, "preprocess failed")
 
-    def error_func(self, msg, line, column):
-        self.fail(msg)
 
-    def type_lookup_func(self, typ):
-        if typ.startswith('mytype'):
-            return True
-        else:
-            return False
+int add(int a, int b);
 
-    def test_build_code_string_from_lex_tokens(self):
-        clex = CLexer(self.error_func, lambda: None, lambda: None, self.type_lookup_func)
-        clex.build(optimize=False)
 
-        '''
-        if the test data contain  \n at the end of the line ,fail
-        '''
-        f = open("test_files/t.txt")
-        data =f.read()
-        f.close()
-        clex.input(data)
-        token_in = list()
-        while True:
-            tok = clex.token()
-            if not tok:
-                break
-            token_in.append(tok)
-
-        self.assertEqual(util.build_code_string_from_lex_tokens(token_in), data)
+        int main()
+        {
+            a=1, b==2;
+            printf("%d\n", add(a, b)))
