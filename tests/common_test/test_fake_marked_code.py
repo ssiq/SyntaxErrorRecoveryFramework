@@ -1,11 +1,11 @@
-import unittest
 import functools
+import unittest
 
-from error_recovery.marked_code import MarkedCode
-from common.mark_code import mark_token_is_system, tokenize_marked_preprocessed_code
-from error_recovery.recovery import BaseRecoveryFramework
-from error_recovery.buffered_clex import BufferedCLex
+from code_parser.mark_code import tokenize_marked_preprocessed_code
 from common.action_constants import ActionType
+from error_recovery.buffered_clex import BufferedCLex
+from error_recovery.marked_code import MarkedCode
+from error_recovery.recovery import BaseRecoveryFramework
 
 
 class TestBaseRecoveryFramework(BaseRecoveryFramework):
@@ -42,7 +42,7 @@ class Test_Fake_Marked_Code(unittest.TestCase):
 
         headers = ['int add(int a, int b);']
         header_names = ['my_math.h']
-        original_sources = [r"""#include<stdio.h>
+        self.original_sources = [r"""#include<stdio.h>
         #include"my_math.h"
 
         int main()
@@ -51,7 +51,7 @@ class Test_Fake_Marked_Code(unittest.TestCase):
             printf("%d\n", add(a, b));
         }
         """]
-        sources = [r"""#include<stdio.h>
+        self.sources = [r"""#include<stdio.h>
         #include"my_math.h"
 
         int main()
@@ -62,10 +62,10 @@ class Test_Fake_Marked_Code(unittest.TestCase):
         """]
         source_names = ['main.c']
 
-        self.mark_code = MarkedCode(headers, header_names, sources, source_names)
+        self.mark_code = MarkedCode(headers, header_names, self.sources, source_names)
         self.tokens = tokenize_marked_preprocessed_code(self.c_parser.clex, self.mark_code)
 
-        self.ori_mark_code = MarkedCode(headers, header_names, original_sources, source_names)
+        self.ori_mark_code = MarkedCode(headers, header_names, self.original_sources, source_names)
         self.ori_tokens = tokenize_marked_preprocessed_code(self.c_parser.clex, self.ori_mark_code)
 
         actions_list = [[] for i in range(len(self.tokens) + 1)]
@@ -81,6 +81,8 @@ class Test_Fake_Marked_Code(unittest.TestCase):
 
 
     def test_blank(self):
+        # res = self.c_parser.parse(self.sources[0])
+        res = self.c_parser.parse(self.original_sources[0])
         pass
 
 

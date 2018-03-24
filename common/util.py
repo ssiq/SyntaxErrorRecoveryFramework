@@ -173,6 +173,9 @@ def modify_lex_tokens_offset(ori_tokens: list, action_type, position, token=None
                                                                  token.type, token.value))
 
     new_tokens = ori_tokens
+    if isinstance(new_tokens, tuple):
+        new_tokens = list(new_tokens)
+
     if action_type is not ActionType.INSERT_BEFORE and action_type is not ActionType.INSERT_AFTER:
         new_tokens = new_tokens[:position] + new_tokens[position+1:]
         bias = 0 - len(ori_tokens[position].value) + 1
