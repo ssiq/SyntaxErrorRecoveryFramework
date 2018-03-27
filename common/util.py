@@ -3,11 +3,20 @@ import os
 from subprocess import Popen, PIPE
 import typing
 import shutil
+import pickle
+import errno
+import functools
+import pandas as pd
+import more_itertools
+import hashlib
+from multiprocessing import Pool
 
 import config
 
 from common.action_constants import ActionType
-from pycparser.pycparser.ply.lex import LexToken
+from pycparser.pycparser.c_parser import CParser
+from pycparser.pycparser.c_lexer import CLexer
+
 
 def maintain_function_co_firstlineno(ori_fn):
     """
@@ -218,3 +227,152 @@ def modify_bias(tokens, position, bias):
     for tok in tokens[position:]:
         tok.lexpos += bias
     return tokens
+
+
+def compile_c_code_by_gcc(code, file_path):
+    write_code_to_file(code, file_path)
+    res = os.system('gcc -fsyntax-only {}'.format(file_path))
+    if res == 0:
+        return True
+    return False
+
+
+def write_code_to_file(code, file_path):
+    ensure_file_path(file_path)
+    f = open(file_path, 'w')
+    f.write(code)
+    f.flush()
+    f.close()
+    return file_path
+
+
+def ensure_file_path(file_path):
+    if not os.path.exists(os.path.dirname(file_path)):
+        os.makedirs(os.path.dirname(file_path))
+
+
+def parse_c_code_by_pycparser(code, file_path, c_parser=None, print_exception=True):
+    if c_parser is None:
+        c_parser = init_pycparser()
+    write_code_to_file(code, file_path)
+    preprocess_code = preprocess_file(file_path)
+    try:
+        root = c_parser.parse(preprocess_code)
+    except Exception as e:
+        if print_exception:
+            print(e)
+        return False
+    return True
+
+
+def init_pycparser(lexer=CLexer):
+    c_parser = CParser()
+    c_parser.build(lexer=lexer)
+    return c_parser
+
+
+def tokenize_by_clex(code, lexer):
+    lexer.input(code)
+    tokens = list(zip(*lexer._tokens_buffer))[0]
+    return tokens
+
+
+def ensure_directory(directory):
+    """
+    Create the directories along the provided directory path that do not exist.
+    """
+    directory = os.path.expanduser(directory)
+    try:
+        os.makedirs(directory)
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise e
+
+
+def disk_cache(basename, directory, method=False):
+    """
+    Function decorator for caching pickleable return values on disk. Uses a
+    hash computed from the function arguments for invalidation. If 'method',
+    skip the first argument, usually being self or cls. The cache filepath is
+    'directory/basename-hash.pickle'.
+    """
+    directory = os.path.expanduser(directory)
+    ensure_directory(directory)
+
+    def wrapper(func):
+        @functools.wraps(func)
+        def wrapped(*args, **kwargs):
+            key = (tuple(args), tuple(kwargs.items()))
+            # Don't use self or cls for the invalidation hash.
+            if method and key:
+                key = key[1:]
+            filename = '{}-{}.pickle'.format(basename, data_hash(key))
+            print('read data file name: {}'.format(filename))
+            filepath = os.path.join(directory, filename)
+            if os.path.isfile(filepath):
+                print('use disk_catch file name: {}'.format(filename))
+                with open(filepath, 'rb') as handle:
+                    return pickle.load(handle)
+            result = func(*args, **kwargs)
+            with open(filepath, 'wb') as handle:
+                pickle.dump(result, handle)
+            return result
+        return wrapped
+
+    return wrapper
+
+
+def data_hash(key):
+
+    def hash_value(hash_item):
+        v = 0
+        try:
+            v = int(hashlib.md5(str(hash_item).encode('utf-8')).hexdigest(), 16)
+        except Exception as e:
+            print('error occur while hash item {} '.format(type(hash_item)))
+        return v
+
+    hash_val = 0
+    key = list(more_itertools.flatten(key))
+    for item in key:
+        if isinstance(item, pd.DataFrame):
+            serlist = [item.itertuples(index=False, name=None)]
+            serlist = list(more_itertools.collapse(serlist))
+            for ser in serlist:
+                val = hash_value(ser)
+                hash_val += val
+        elif isinstance(item, pd.Series):
+            serlist = item.tolist()
+            serlist = list(more_itertools.collapse(serlist))
+            for ser in serlist:
+                val = hash_value(ser)
+                hash_val += val
+        elif isinstance(item, int) or isinstance(item, float) or isinstance(item, str):
+            val = hash_value(item)
+            hash_val += val
+        elif isinstance(item, list) or isinstance(item, set) or isinstance(item, tuple):
+            serlist = list(more_itertools.collapse(item))
+            for ser in serlist:
+                val = hash_value(ser)
+                hash_val += val
+        elif isinstance(item, dict):
+            serlist = list(more_itertools.collapse(item.items()))
+            for ser in serlist:
+                val = hash_value(ser)
+                hash_val += val
+        else:
+            print('type {} cant be hashed.'.format(type(item)))
+    return str(hash_val)
+
+
+def parallel_map(core_num, f, args):
+    """
+    :param core_num: the cpu number
+    :param f: the function to parallel to do
+    :param args: the input args
+    :return:
+    """
+
+    with Pool(core_num) as p:
+        r = p.map(f, args)
+        return r
