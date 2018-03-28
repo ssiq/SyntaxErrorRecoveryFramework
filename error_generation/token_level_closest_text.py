@@ -1,12 +1,14 @@
-from common.constants import verdict
+from common.constants import TRAIN_DATA_DBPATH, ACTUAL_C_ERROR_RECORDS
 from common.action_constants import ActionType
 from common.util import compile_c_code_by_gcc, parse_c_code_by_pycparser, init_pycparser, tokenize_by_clex, parallel_map
 from error_recovery.buffered_clex import BufferedCLex
 from error_generation.levenshtenin_token_level import levenshtenin_distance
 from common.read_data.read_data import read_all_c_records
+from database.database_util import create_table, insert_items
 
 import pandas as pd
 import re
+import json
 
 def generate_equal_fn(token_value_fn=lambda x:x):
     def equal_fn(x, y):
@@ -60,7 +62,7 @@ def find_closest_group(one_group:pd.DataFrame):
     error_df = error_df.apply(find_closest_token_text, axis=1, raw=True, ac_df=ac_df)
     error_df = error_df[error_df['res'].map(lambda x: x is not None)]
 
-    return error_df
+    return error_df, ac_df
 
 
 def check_include_between_two_code(code1, code2):
@@ -153,16 +155,41 @@ def create_id(one):
     return problem + '_' + user
 
 
+def transform_data_list(one):
+    item = []
+    item += [one['id']]
+    item += [one['submit_id']]
+    item += [one['problem_id']]
+    item += [one['user_id']]
+    item += [one['problem_user_id']]
+    item += [one['code']]
+    item += [1 if one['gcc_compile_result'] else 0]
+    item += [1 if one['pycparser_result'] else 0]
+    item += [one['similar_code']] if not one['gcc_compile_result'] else ['']
+    item += [json.dumps(one['modify_action_list'])] if not one['gcc_compile_result'] else ['']
+    item += [json.dumps(one['error_to_ac_action_list'])] if not one['gcc_compile_result'] else ['']
+    item += [int(one['distance'])] if not one['gcc_compile_result'] else [-1]
+    return item
+
+
 if __name__ == '__main__':
     data_df = read_all_c_records()
-    data_df['identify'] = data_df.apply(create_id)
+    data_df['problem_user_id'] = data_df.apply(create_id)
 
-    grouped = data_df.groupby('identify')
+    grouped = data_df.groupby('problem_user_id')
     group_list = []
     for name, group in grouped:
         group_list += [group]
     res = list(parallel_map(8, find_closest_group, group_list))
-    # save res
+    error_df, ac_df = list(zip(*res))
+
+    # save records
+    create_table(TRAIN_DATA_DBPATH, ACTUAL_C_ERROR_RECORDS)
+    error_list = error_df.apply(transform_data_list, raw=True, axis=1)
+    insert_items(TRAIN_DATA_DBPATH, ACTUAL_C_ERROR_RECORDS, error_list)
+    ac_list = ac_df.apply(transform_data_list, raw=True, axis=1)
+    insert_items(TRAIN_DATA_DBPATH, ACTUAL_C_ERROR_RECORDS, ac_list)
+
 
 
 

@@ -1,11 +1,25 @@
 import os
+from config import root, scrapyOJ_path
 
-scrapyOJ_DB_PATH = r'/home/lf/new_disk/data_store/codeforces/scrapyOJ.db'
 
-ROOT_PATH = r'/home/lf/Project/SyntaxErrorRecoveryFramework'
+# scrapyOJ db path. all OJ data
+scrapyOJ_DB_PATH = scrapyOJ_path
+
+
+# project dir path
+ROOT_PATH = root
 DATA_PATH = os.path.join(ROOT_PATH, 'data')
 
 
+# db path
+TRAIN_DATA_DBPATH = os.path.join(DATA_PATH, 'train_data.db')
+
+
+# table name
+ACTUAL_C_ERROR_RECORDS = 'actual_c_error_records'
+
+
+# code status and language transform dict
 verdict = {'OK': 1, 'REJECTED': 2, 'WRONG_ANSWER': 3, 'RUNTIME_ERROR': 4, 'TIME_LIMIT_EXCEEDED': 5, 'MEMORY_LIMIT_EXCEEDED': 6,
            'COMPILATION_ERROR': 7, 'CHALLENGED': 8, 'FAILED': 9, 'PARTIAL': 10, 'PRESENTATION_ERROR': 11, 'IDLENESS_LIMIT_EXCEEDED': 12,
            'SECURITY_VIOLATED': 13, 'CRASHED': 14, 'INPUT_PREPARATION_CRASHED': 15, 'SKIPPED': 16, 'TESTING': 17, 'SUBMITTED': 18}
