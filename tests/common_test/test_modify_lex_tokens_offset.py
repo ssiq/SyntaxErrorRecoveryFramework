@@ -42,6 +42,7 @@ class Test(unittest.TestCase):
             return token
 
         text = r"""
+        #include <math.h>
         void func(void)
         {
           x = 1;
@@ -53,6 +54,9 @@ class Test(unittest.TestCase):
             yacc_debug=True,
             yacc_optimize=False,
             yacctab='yacctab')
+
+        c_parser.clex.input(text)
+        print(list(zip(*c_parser.clex._tokens_buffer))[0])
 
         root = c_parser.parse(text)
         ori_tokens = list(zip(*c_parser.clex._tokens_buffer))[0]

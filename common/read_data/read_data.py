@@ -48,3 +48,11 @@ def read_all_c_records():
     conn = sqlite3.connect("file:{}?mode=ro".format(scrapyOJ_DB_PATH), uri=True)
     data_df = read_all_c_data(conn)
     return data_df
+
+
+def read_all_submit_records():
+    conn = sqlite3.connect("file:{}?mode=ro".format(scrapyOJ_DB_PATH), uri=True)
+    data_df = read_all_submit_data(conn)
+    return data_df
+
+

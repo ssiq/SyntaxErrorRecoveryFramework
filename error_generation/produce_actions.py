@@ -3,7 +3,7 @@
 
 # -------------------- calculate the recovery actions between two code -------------------------------- #
 
-def get_action(matrix, i, j, a_token, b_token, equal_fn, left_action_fn, top_action_fn, left_top_action_fn, value_fn=lambda x: x):
+def get_action(matrix, i, j, a_token, b_token, left_action_fn, top_action_fn, left_top_action_fn, equal_fn, value_fn=lambda x: x):
     if i == 0 and j == 0:
         return None, -1, -1
     if i == 0:
@@ -67,7 +67,7 @@ def cal_action_list(matrix, a_tokens, b_tokens, left_action_fn, top_action_fn, l
         # if (action_is_list(a_token) or action_is_list(b_token)) and not equal_fn(a_token, b_token):
         #     print('in check action, {}, {}'.format(a_token, b_token))
         #     return None
-        action, i, j = get_action(matrix, i, j, a_token, b_token, equal_fn, value_fn, left_action_fn, top_action_fn, left_top_action_fn)
+        action, i, j = get_action(matrix, i, j, a_token, b_token, left_action_fn, top_action_fn, left_top_action_fn, equal_fn, value_fn)
         if action is not None:
             action_list = action_list + [action]
         if i is None:

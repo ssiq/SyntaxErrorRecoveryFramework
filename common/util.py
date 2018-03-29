@@ -10,6 +10,7 @@ import pandas as pd
 import more_itertools
 import hashlib
 from multiprocessing import Pool
+import re
 
 import config
 
@@ -98,8 +99,8 @@ def preprocess(file_path: str, user_header_paths: typing.List[str]=list()) -> st
     cpp_args = ['-I{}'.format(config.fake_system_header_path)]
     for s in user_header_paths:
         cpp_args.append('-I{}'.format(s))
-    print()
-    print(cpp_args)
+    # print()
+    # print(cpp_args)
     return preprocess_file(file_path, cpp_args=cpp_args)
 
 
@@ -231,13 +232,14 @@ def modify_bias(tokens, position, bias):
 
 def compile_c_code_by_gcc(code, file_path):
     write_code_to_file(code, file_path)
-    res = os.system('gcc -fsyntax-only {}'.format(file_path))
+    res = os.system('gcc -fsyntax-only {} > nul 2>&1'.format(file_path))
     if res == 0:
         return True
     return False
 
 
 def write_code_to_file(code, file_path):
+    file_path = os.path.abspath(file_path)
     ensure_file_path(file_path)
     f = open(file_path, 'w')
     f.write(code)
@@ -255,7 +257,8 @@ def parse_c_code_by_pycparser(code, file_path, c_parser=None, print_exception=Tr
     if c_parser is None:
         c_parser = init_pycparser()
     write_code_to_file(code, file_path)
-    preprocess_code = preprocess_file(file_path)
+    preprocess_code = preprocess(file_path)
+    preprocess_code = preprocess_code.replace('\r', '')
     try:
         root = c_parser.parse(preprocess_code)
     except Exception as e:
@@ -272,9 +275,15 @@ def init_pycparser(lexer=CLexer):
 
 
 def tokenize_by_clex(code, lexer):
-    lexer.input(code)
-    tokens = list(zip(*lexer._tokens_buffer))[0]
-    return tokens
+    try:
+        lexer.input(code)
+        tokens = list(zip(*lexer._tokens_buffer))[0]
+        return tokens
+    except IndexError as e:
+        # print('token_buffer_len:{}'.format(len(lexer._tokens_buffer)))
+        return None
+    except Exception as a:
+        return None
 
 
 def ensure_directory(directory):
@@ -376,3 +385,48 @@ def parallel_map(core_num, f, args):
     with Pool(core_num) as p:
         r = p.map(f, args)
         return r
+
+
+def check_ascii_character(code:str):
+    return all(ord(c) < 128 for c in code)
+
+
+def init_code(code):
+    code = code.replace('\ufeff', '').replace('\u3000', ' ')
+    code = remove_blank(code)
+    code = remove_r_char(code)
+    code = remove_comments(code)
+    code = remove_blank_line(code)
+    return code
+
+
+def remove_comments(code):
+    pattern = r"(\".*?(?<!\\)\"|\'.*?(?<!\\)\')|(/\*.*?\*/|//[^\r\n]*$)"
+    # first group captures quoted strings (double or single)
+    # second group captures comments (//single-line or /* multi-line */)
+    regex = re.compile(pattern, re.MULTILINE|re.DOTALL)
+    def _replacer(match):
+        # if the 2nd group (capturing comments) is not None,
+        # it means we have captured a non-quoted (real) comment string.
+        if match.group(2) is not None:
+            return "" # so we will return empty to remove the comment
+        else: # otherwise, we will return the 1st group
+            return match.group(1) # captured quoted-string
+    return regex.sub(_replacer, code)
+
+
+def remove_blank_line(code):
+    code = "\n".join([line for line in code.split('\n') if line.strip() != ''])
+    return code
+
+
+def remove_r_char(code):
+    code = code.replace('\r', '')
+    return code
+
+
+def remove_blank(code):
+    pattern = re.compile('''('.*?'|".*?"|[^ \t\r\f\v"']+)''')
+    mat = re.findall(pattern, code)
+    processed_code = ' '.join(mat)
+    return processed_code
