@@ -32,7 +32,10 @@ def levenshtenin_distance(a_list, b_list, equal_fn=lambda a, b: a == b, max_dist
     a_len = len(a_list)
     b_len = len(b_list)
     matrix = make_metrix(a_len, b_len)
-    res = levenshtenin_distance_iterator(matrix, a_list, b_list, a_len, b_len, equal_fn, max_distance)
+    try:
+        res = levenshtenin_distance_iterator(matrix, a_list, b_list, a_len, b_len, equal_fn, max_distance)
+    except Exception as e:
+        return -1, matrix
     return res, matrix
 
 

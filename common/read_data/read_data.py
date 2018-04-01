@@ -1,7 +1,8 @@
 import sqlite3
 import pandas as pd
 
-from common.constants import verdict, langdict, scrapyOJ_DB_PATH
+from common.constants import verdict, langdict, scrapyOJ_DB_PATH, CACHE_DATA_PATH
+from common.util import disk_cache
 
 
 def merge_and_deal_submit_table(problems_df, submit_df):
@@ -44,6 +45,7 @@ def read_data(conn, table, condition=None):
     return data_df
 
 
+@disk_cache(basename='read_all_c_records', directory=CACHE_DATA_PATH)
 def read_all_c_records():
     conn = sqlite3.connect("file:{}?mode=ro".format(scrapyOJ_DB_PATH), uri=True)
     data_df = read_all_c_data(conn)

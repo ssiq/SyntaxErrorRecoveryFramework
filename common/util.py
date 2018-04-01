@@ -232,7 +232,7 @@ def modify_bias(tokens, position, bias):
 
 def compile_c_code_by_gcc(code, file_path):
     write_code_to_file(code, file_path)
-    res = os.system('gcc -fsyntax-only {} > nul 2>&1'.format(file_path))
+    res = os.system('gcc -fsyntax-only {} >/dev/null 2>/dev/null'.format(file_path))
     if res == 0:
         return True
     return False
@@ -273,16 +273,19 @@ def init_pycparser(lexer=CLexer):
     c_parser.build(lexer=lexer)
     return c_parser
 
-
+tokenize_error_count = 0
 def tokenize_by_clex(code, lexer):
+    global tokenize_error_count
     try:
         lexer.input(code)
         tokens = list(zip(*lexer._tokens_buffer))[0]
         return tokens
     except IndexError as e:
+        tokenize_error_count += 1
         # print('token_buffer_len:{}'.format(len(lexer._tokens_buffer)))
         return None
     except Exception as a:
+        tokenize_error_count += 1
         return None
 
 

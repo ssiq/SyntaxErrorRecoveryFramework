@@ -1,18 +1,20 @@
-from common.constants import TRAIN_DATA_DBPATH, ACTUAL_C_ERROR_RECORDS
+from common.constants import TRAIN_DATA_DBPATH, ACTUAL_C_ERROR_RECORDS, CACHE_DATA_PATH
 from common.action_constants import ActionType
 from common.util import compile_c_code_by_gcc, parse_c_code_by_pycparser, init_pycparser, tokenize_by_clex, parallel_map, \
-    init_code, check_ascii_character
+    init_code, check_ascii_character, disk_cache
 from error_recovery.buffered_clex import BufferedCLex
 from error_generation.levenshtenin_token_level import levenshtenin_distance
 from error_generation.produce_actions import cal_action_list
 from common.read_data.read_data import read_all_c_records
 from database.database_util import create_table, insert_items
+from common.util import tokenize_error_count
 
 import pandas as pd
 import re
 import json
 import numpy as np
 import multiprocessing
+import sys
 
 def generate_equal_fn(token_value_fn=lambda x:x):
     def equal_fn(x, y):
@@ -28,8 +30,12 @@ def get_token_value(x):
         val = ''.join(val)
     return val
 
+a_tokenize_error_count = 0
+ac_df_length_error = 0
+distance_series_error = 0
 
 def find_closest_token_text(one, ac_df):
+    global a_tokenize_error_count, ac_df_length_error, distance_series_error
     equal_fn = generate_equal_fn(get_token_value)
     a_tokenize = one['tokenize']
     a_code = one['code']
@@ -40,14 +46,22 @@ def find_closest_token_text(one, ac_df):
         one['action_list'] = []
         one['distance'] = -1
         one['similar_id'] = ''
+        # print('a_tokenize is None {}, and len ac_df is {}'.format(type(a_tokenize), len(ac_df)))
+        if a_tokenize is None:
+            a_tokenize_error_count += 1
+        elif len(ac_df) == 0:
+            ac_df_length_error += 1
         return one
     cal_distance_fn = lambda x: levenshtenin_distance(a_tokenize, x, equal_fn=equal_fn)[0]
     distance_series = ac_df['tokenize'].map(cal_distance_fn)
+    distance_series = distance_series[distance_series.map(lambda x: x >= 0)]
     if len(distance_series.index) <= 0:
         one['similar_code'] = ''
         one['action_list'] = []
         one['distance'] = -1
         one['similar_id'] = ''
+        # print('distance series len is {}'.format(len(distance_series)))
+        distance_series_error += 1
         return one
     min_id = distance_series.idxmin()
     min_value = distance_series.loc[min_id]
@@ -75,30 +89,38 @@ def check_group_has_both(df):
         hasError = True
     return hasAC & hasError
 
+
 count = 0
 def find_closest_group(one_group: pd.DataFrame):
-    global count
+    sys.setrecursionlimit(5000)
+    global count, a_tokenize_error_count, ac_df_length_error, distance_series_error
     current = multiprocessing.current_process()
-    if count % 100 == 0:
-        print('iteration {} in process {} {}: '.format(count, current.pid, current.name))
+    if count % 1 == 0:
+        print('iteration {} in process {} {}:tokenize_error_count: {}, a_tokenize_error_count: {}, '
+              'ac_df_length_error: {}, distance_series_error: {}'.format(count, current.pid, current.name,
+                                                                         tokenize_error_count, a_tokenize_error_count,
+                                                                         ac_df_length_error, distance_series_error))
     count += 1
-    if not check_group_has_both(one_group):
-        return None
+    # if not check_group_has_both(one_group):
+    #     return None
 
     c_parser = init_pycparser(lexer=BufferedCLex)
-    file_path = 'data/tmp_file_{}.c'.format(current.pid)
+    file_path = '/dev/shm/tmp_file_{}.c'.format(current.pid)
     one_group['gcc_compile_result'] = one_group['code'].apply(compile_c_code_by_gcc, file_path=file_path)
     one_group['pycparser_result'] = one_group['code'].apply(parse_c_code_by_pycparser, file_path=file_path, c_parser=c_parser, print_exception=False)
     one_group['code_without_include'] = one_group['code'].map(remove_include).map(lambda x: x.replace('\r', ''))
     one_group['tokenize'] = one_group['code_without_include'].apply(tokenize_by_clex, lexer=c_parser.clex)
     one_group = one_group[one_group['tokenize'].map(lambda x: x is not None)]
+
     ac_df = one_group[one_group['gcc_compile_result']]
     error_df = one_group[one_group['gcc_compile_result'].map(lambda x: not x)]
 
     error_df = error_df.apply(find_closest_token_text, axis=1, raw=True, ac_df=ac_df)
     # error_df = error_df[error_df['res'].map(lambda x: x is not None)]
-    error_df = error_df.drop(['tokenize'], axis=1)
-    ac_df = ac_df.drop(['tokenize'], axis=1)
+    if 'tokenize' in error_df.columns.values.tolist():
+        error_df = error_df.drop(['tokenize'], axis=1)
+    if 'tokenize' in ac_df.columns.values.tolist():
+        ac_df = ac_df.drop(['tokenize'], axis=1)
     return error_df, ac_df
 
 
@@ -223,9 +245,9 @@ def group_df_to_grouped_list(data_df, groupby_key):
     return group_list
 
 
+@disk_cache(basename='init_c_code', directory=CACHE_DATA_PATH)
 def init_c_code(data_df):
     data_df['problem_user_id'] = data_df.apply(create_id, axis=1, raw=True)
-    data_df['code'] = data_df['code'].map(lambda x: x.replace('\r', ''))
     data_df['code'] = data_df['code'].map(init_code)
     print('data length before check ascii: {}'.format(len(data_df)))
     data_df = data_df[data_df['code'].map(check_ascii_character)]
@@ -250,15 +272,18 @@ def save_train_data(error_df_list, ac_df_list):
 
 
 if __name__ == '__main__':
-    import sys
     sys.setrecursionlimit(5000)
     data_df = read_all_c_records()
+    # data_df = data_df.sample(100000)
     print('finish read code: {}'.format(len(data_df.index)))
     data_df = init_c_code(data_df)
     print('finish init code: {}'.format(len(data_df.index)))
+    # data_df = data_df.sample(10000)
 
     group_list = group_df_to_grouped_list(data_df, 'problem_user_id')
     print('group list length: {}'.format(len(group_list)))
+    group_list = list(filter(check_group_has_both, group_list))
+    print('after filter both group list length: {}'.format(len(group_list)))
     res = list(parallel_map(8, find_closest_group, group_list))
     # res = [find_closest_group(group) for group in group_list]
     res = list(filter(lambda x: x is not None, res))

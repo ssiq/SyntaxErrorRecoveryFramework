@@ -9,6 +9,7 @@ scrapyOJ_DB_PATH = scrapyOJ_path
 # project dir path
 ROOT_PATH = root
 DATA_PATH = os.path.join(ROOT_PATH, 'data')
+CACHE_DATA_PATH = os.path.join(ROOT_PATH, 'cache')
 
 
 # db path
