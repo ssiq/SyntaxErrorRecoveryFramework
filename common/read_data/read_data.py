@@ -1,7 +1,8 @@
 import sqlite3
 import pandas as pd
 
-from common.constants import verdict, langdict, scrapyOJ_DB_PATH, CACHE_DATA_PATH
+from common.constants import verdict, langdict, scrapyOJ_DB_PATH, CACHE_DATA_PATH, TRAIN_DATA_DBPATH, \
+    ACTUAL_C_ERROR_RECORDS
 from common.util import disk_cache
 
 
@@ -36,8 +37,7 @@ def read_data(conn, table, condition=None):
     note = '"'
     if condition is not None:
         extra_filter += ' where '
-        condition_str = ['{}={}{}{}'.format(key, note, value, note) if isinstance(str, value)
-                         else '{}={}'.format(key, value) for key, value in condition.items()]
+        condition_str = ['{}{}{}'.format(con[0], con[1], con[2]) for con in condition]
         extra_filter += (' and '.join(condition_str))
     sql = 'select * from {} {}'.format(table, extra_filter)
     data_df = pd.read_sql(sql, conn)
@@ -52,9 +52,26 @@ def read_all_c_records():
     return data_df
 
 
+@disk_cache(basename='read_all_submit_records', directory=CACHE_DATA_PATH)
 def read_all_submit_records():
     conn = sqlite3.connect("file:{}?mode=ro".format(scrapyOJ_DB_PATH), uri=True)
     data_df = read_all_submit_data(conn)
+    return data_df
+
+
+@disk_cache(basename='read_train_data_all_c_error_records', directory=CACHE_DATA_PATH)
+def read_train_data_all_c_error_records():
+    conn = sqlite3.connect("file:{}?mode=ro".format(TRAIN_DATA_DBPATH), uri=True)
+    data_df = read_data(conn, ACTUAL_C_ERROR_RECORDS)
+    return data_df
+
+
+@disk_cache(basename='read_train_data_effect_all_c_error_records', directory=CACHE_DATA_PATH)
+def read_train_data_effect_all_c_error_records():
+    conn = sqlite3.connect("file:{}?mode=ro".format(TRAIN_DATA_DBPATH), uri=True)
+    condition = [('distance', '>=', 0),
+                 ('distance', '<', 10), ]
+    data_df = read_data(conn, ACTUAL_C_ERROR_RECORDS, condition)
     return data_df
 
 

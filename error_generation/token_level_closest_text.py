@@ -1,3 +1,4 @@
+from common.analyse_include_util import check_include_between_two_code, remove_include
 from common.constants import TRAIN_DATA_DBPATH, ACTUAL_C_ERROR_RECORDS, CACHE_DATA_PATH
 from common.action_constants import ActionType
 from common.util import compile_c_code_by_gcc, parse_c_code_by_pycparser, init_pycparser, tokenize_by_clex, parallel_map, \
@@ -10,7 +11,6 @@ from database.database_util import create_table, insert_items
 from common.util import tokenize_error_count
 
 import pandas as pd
-import re
 import json
 import numpy as np
 import multiprocessing
@@ -122,54 +122,6 @@ def find_closest_group(one_group: pd.DataFrame):
     if 'tokenize' in ac_df.columns.values.tolist():
         ac_df = ac_df.drop(['tokenize'], axis=1)
     return error_df, ac_df
-
-
-def check_include_between_two_code(code1, code2):
-    names1 = extract_include_from_code(code1)
-    names2 = extract_include_from_code(code2)
-    return equal_include(names1, names2)
-
-
-def extract_include_from_code(code):
-    includes = extract_include(code)
-    include_names = [extract_include_name(inc) for inc in includes]
-    return include_names
-
-
-def remove_include(code):
-    lines = code.split('\n')
-    pattern = re.compile('#include *<(.*)>|#include *"(.*)"')
-    lines_without_include = list(filter(lambda line: pattern.match(line) is None, lines))
-    return '\n'.join(lines_without_include)
-
-
-def equal_include(names1, names2):
-    if len(names1) != len(names2):
-        return False
-    for inc1, inc2 in zip(names1, names2):
-        if inc1 != inc2:
-            return False
-    return True
-
-
-def extract_include(code):
-    lines = code.split('\n')
-    lines_without_include = list(filter(lambda line: 'include' not in line, lines))
-    pattern = re.compile('#include *<(.*)>|#include *"(.*)"')
-    lines = map(str.strip, lines)
-    include_lines = list(filter(lambda line: pattern.match(line) is not None, lines))
-    return include_lines
-
-
-def extract_include_name(include):
-    include = include.strip()
-    m = re.match('#include *<(.*)>', include)
-    if m:
-        return m.group(1)
-    m = re.match('#include *"(.*)"', include)
-    if m:
-        return m.group(1)
-    return None
 
 
 def left_move_action(i, j, a_token, b_token, value_fn=lambda x: x):

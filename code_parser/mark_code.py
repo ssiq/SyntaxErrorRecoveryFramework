@@ -1,8 +1,12 @@
 from common.action_constants import TokenType, ActionType
 from common.util import modify_lex_tokens_offset, build_code_string_from_lex_tokens
 from pycparser.pycparser.ply.lex import LexToken
+from common.analyse_include_util import replace_include_with_blank, analyse_include_line_no, \
+    calculate_include_preprocess_token_length, extract_include
+from common.constants import TMP_FILE_PATH
 
 import numpy as np
+import os
 
 
 def mark_token_is_system(marked_code, buffered_lexer):
@@ -12,14 +16,14 @@ def mark_token_is_system(marked_code, buffered_lexer):
     :param buffered_lexer: a buffered lexer
     :return:
     """
-    tokens = tokenize_marked_preprocessed_code(buffered_lexer, marked_code)
+    tokens = tokenize_marked_preprocessed_code(buffered_lexer, marked_code._preprocessed_code)
 
     token_types = [TokenType.SYSTEM if marked_code.is_in_system_header(tok.lineno) else TokenType.NORMAL for tok in tokens]
     return token_types
 
 
-def tokenize_marked_preprocessed_code(buffered_lexer, marked_code):
-    buffered_lexer.input(marked_code._preprocessed_code)
+def tokenize_marked_preprocessed_code(buffered_lexer, code):
+    buffered_lexer.input(code)
     tokens = list(zip(*buffered_lexer._tokens_buffer))[0]
     return tokens
 
@@ -120,4 +124,35 @@ def filter_action_types(actions, types):
     return res
 
 
+def calculate_include_token_pos(buffer_lex, code):
+    blank_include_code = replace_include_with_blank(code)
+    tokens = tokenize_marked_preprocessed_code(buffer_lex, blank_include_code)
+
+    include_lines = extract_include(code)
+    include_line_nos = analyse_include_line_no(code, include_lines)
+    include_token_poses = [calculate_one_include_token_pos(tokens, include_line_no) for include_line_no in include_line_nos]
+    file_path = os.path.join(TMP_FILE_PATH, 'include.c')
+    include_lengths = [calculate_include_preprocess_token_length(include_name, file_path, buffer_lex, add_include=False) for include_name in include_lines]
+    return include_lines, include_line_nos, include_token_poses, include_lengths
+
+
+def calculate_one_include_token_pos(tokens, include_line_no):
+    for i in range(len(tokens)):
+        if tokens[i] > include_line_no:
+            return i
+    print('calculate_one_include_token_pos error. tokens: {}, include_line_no: {}'.format(tokens, include_line_no))
+    return None
+
+
+def add_include_bias_of_operation_pos(include_token_poses, include_lengths, operations):
+    for ope in operations:
+        bias_list = [include_len if ope['token_pos'] >= include_token_pos else 0 for include_token_pos, include_len in zip(include_token_poses, include_lengths)]
+        ope['token_pos'] += np.sum(bias_list)
+    return operations
+
+
+def add_include_len_operations_pos(buffer_lex, code, operations):
+    include_lines, include_line_nos, include_token_poses, include_lengths = calculate_include_token_pos(buffer_lex, code)
+    operations = add_include_bias_of_operation_pos(include_token_poses, include_lengths, operations)
+    return operations
 
