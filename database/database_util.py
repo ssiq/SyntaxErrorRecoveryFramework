@@ -53,6 +53,20 @@ def run_sql_statment(db_full_path, table_name, sql_name, params, replace_table_n
 
 
 @with_connect()
+def run_sql_select_statment(db_full_path, table_name, sql_name, replace_table_name=None, **kwargs):
+    assert 'con' in kwargs.keys()
+
+    sql = sql_dict[table_name][sql_name]
+    if replace_table_name is not None:
+        sql = sql.replace('TABLENAME', replace_table_name)
+    con = kwargs['con']
+    cur = con.cursor()
+    cur.execute(sql)
+    res = cur.fetchall()
+    return res
+
+
+@with_connect()
 def find_ids_by_user_problem_id(db_full_path, table_name, ids, **kwargs):
     assert 'con' in kwargs.keys()
 

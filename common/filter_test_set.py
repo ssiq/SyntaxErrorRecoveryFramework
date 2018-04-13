@@ -1,0 +1,52 @@
+import pandas as pd
+import copy
+
+from common.util import group_df_to_grouped_list
+
+
+def filter_distinct_table_key(data_df, key, max_num=None):
+    if max_num is None:
+        max_num = float('inf')
+    group_list = group_df_to_grouped_list(data_df, key)
+    num = min(max_num, len(group_list[0]))
+    group_res = group_list[0].sample(num).copy(deep=True)
+    for group in group_list[1:]:
+        num = min(max_num, len(group))
+        group_res = group_res.append(group.sample(num), ignore_index=True)
+    return group_res
+
+
+def filter_distinct_problem_user_id(data_df):
+    data_df = filter_distinct_table_key(data_df, 'problem_user_id', max_num=1)
+    return data_df
+
+
+def filter_distinct_problem(data_df, max_num=None):
+    data_df = filter_distinct_table_key(data_df, 'problem_id', max_num=max_num)
+    return data_df
+
+
+def filter_distinct_user(data_df, max_num=None):
+    data_df = filter_distinct_table_key(data_df, 'user_id', max_num=max_num)
+    return data_df
+
+
+def filter_distinct_test_c_data(data_df):
+    data_df = filter_distinct_problem_user_id(data_df)
+    data_df = filter_distinct_problem(data_df, 10)
+    data_df = filter_distinct_user(data_df, 10)
+    return data_df
+
+
+if __name__ == '__main__':
+    from common.read_data.read_data import read_train_data_effect_all_c_error_records, read_train_data_all_c_error_records
+    data_df = read_train_data_all_c_error_records()
+    print(len(data_df))
+    data_df = data_df[data_df['distance'].map(lambda x: x!=-1)]
+    print(len(data_df))
+    data_df = filter_distinct_problem_user_id(data_df)
+    print(len(data_df))
+    # data_df = filter_distinct_problem(data_df, 10)
+    # print(len(data_df))
+    # data_df = filter_distinct_user(data_df, 10)
+    # print(len(data_df))

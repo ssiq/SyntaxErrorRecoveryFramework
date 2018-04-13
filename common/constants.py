@@ -19,6 +19,7 @@ TRAIN_DATA_DBPATH = os.path.join(DATA_PATH, 'train_data.db')
 
 # table name
 ACTUAL_C_ERROR_RECORDS = 'actual_c_error_records'
+CPP_TESTCASE_ERROR_RECORDS = 'cpp_testcase_error_records'
 
 
 # code status and language transform dict

@@ -32,6 +32,13 @@ def read_all_c_data(conn):
     return submit_joined_df
 
 
+def read_all_cpp_data(conn):
+    problems_df = pd.read_sql('select problem_name, tags from {}'.format('problem'), conn)
+    submit_df = pd.read_sql('select * from {} where language="GNU C++"'.format('submit'), conn)
+    submit_joined_df = merge_and_deal_submit_table(problems_df, submit_df)
+    return submit_joined_df
+
+
 def read_data(conn, table, condition=None):
     extra_filter = ''
     note = '"'
@@ -49,6 +56,13 @@ def read_data(conn, table, condition=None):
 def read_all_c_records():
     conn = sqlite3.connect("file:{}?mode=ro".format(scrapyOJ_DB_PATH), uri=True)
     data_df = read_all_c_data(conn)
+    return data_df
+
+
+@disk_cache(basename='read_all_cpp_records', directory=CACHE_DATA_PATH)
+def read_all_cpp_records():
+    conn = sqlite3.connect("file:{}?mode=ro".format(scrapyOJ_DB_PATH), uri=True)
+    data_df = read_all_cpp_data(conn)
     return data_df
 
 
@@ -73,5 +87,18 @@ def read_train_data_effect_all_c_error_records():
                  ('distance', '<', 10), ]
     data_df = read_data(conn, ACTUAL_C_ERROR_RECORDS, condition)
     return data_df
+
+
+@disk_cache(basename='read_special_cpp_records', directory=CACHE_DATA_PATH)
+def read_special_cpp_records(problem_id, user_id):
+    conn = sqlite3.connect("file:{}?mode=ro".format(scrapyOJ_DB_PATH), uri=True)
+
+    problems_df = pd.read_sql('select problem_name, tags from {}'.format('problem'), conn)
+    submit_df = pd.read_sql('select * from submit where language="GNU C++" and problem_name="{}" and user_id="{}"'.format(problem_id, user_id), conn)
+    submit_joined_df = merge_and_deal_submit_table(problems_df, submit_df)
+    print('read special problem id {} user id {} with {} records'.format(problem_id, user_id, len(submit_joined_df)))
+    return submit_joined_df
+
+
 
 

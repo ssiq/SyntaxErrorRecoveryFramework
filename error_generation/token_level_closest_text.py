@@ -1,20 +1,11 @@
-from common.analyse_include_util import check_include_between_two_code, remove_include
-from common.constants import TRAIN_DATA_DBPATH, ACTUAL_C_ERROR_RECORDS, CACHE_DATA_PATH
+from common.analyse_include_util import check_include_between_two_code
+from common.constants import CACHE_DATA_PATH
 from common.action_constants import ActionType
-from common.util import compile_c_code_by_gcc, parse_c_code_by_pycparser, init_pycparser, tokenize_by_clex, parallel_map, \
-    init_code, check_ascii_character, disk_cache
-from error_recovery.buffered_clex import BufferedCLex
+from common.util import init_code, check_ascii_character, disk_cache
 from error_generation.levenshtenin_token_level import levenshtenin_distance
 from error_generation.produce_actions import cal_action_list
-from common.read_data.read_data import read_all_c_records
 from database.database_util import create_table, insert_items
-from common.util import tokenize_error_count
 
-import pandas as pd
-import json
-import numpy as np
-import multiprocessing
-import sys
 
 def generate_equal_fn(token_value_fn=lambda x:x):
     def equal_fn(x, y):
@@ -34,7 +25,7 @@ a_tokenize_error_count = 0
 ac_df_length_error = 0
 distance_series_error = 0
 
-def find_closest_token_text(one, ac_df):
+def find_closest_token_text(one, ac_df, max_distance=None):
     global a_tokenize_error_count, ac_df_length_error, distance_series_error
     equal_fn = generate_equal_fn(get_token_value)
     a_tokenize = one['tokenize']
@@ -52,9 +43,11 @@ def find_closest_token_text(one, ac_df):
         elif len(ac_df) == 0:
             ac_df_length_error += 1
         return one
-    cal_distance_fn = lambda x: levenshtenin_distance(a_tokenize, x, equal_fn=equal_fn)[0]
+    cal_distance_fn = lambda x: levenshtenin_distance(a_tokenize, x, equal_fn=equal_fn, max_distance=max_distance)[0]
     distance_series = ac_df['tokenize'].map(cal_distance_fn)
-    distance_series = distance_series[distance_series.map(lambda x: x >= 0)]
+    distance_series = distance_series[distance_series >= 0]
+    if max_distance is not None and max_distance >= 1:
+        distance_series = distance_series[distance_series < max_distance]
     if len(distance_series.index) <= 0:
         one['similar_code'] = ''
         one['action_list'] = []
@@ -66,62 +59,29 @@ def find_closest_token_text(one, ac_df):
     min_id = distance_series.idxmin()
     min_value = distance_series.loc[min_id]
 
-    matrix = levenshtenin_distance(a_tokenize, ac_df['tokenize'].loc[min_id], equal_fn=equal_fn)[1]
     b_tokenize = ac_df['tokenize'].loc[min_id]
-    action_list = cal_action_list(matrix, a_tokenize, b_tokenize, left_move_action, top_move_action, left_top_move_action, equal_fn, get_token_value)
+    try:
+        dis, matrix = levenshtenin_distance(a_tokenize, b_tokenize, equal_fn=equal_fn)
+        if dis == -1:
+            one['similar_code'] = ''
+            one['action_list'] = []
+            one['distance'] = -1
+            one['similar_id'] = ''
+            return one
+        action_list = cal_action_list(matrix, a_tokenize, b_tokenize, left_move_action, top_move_action, left_top_move_action, equal_fn, get_token_value)
+    except Exception as e:
+        print(e)
+        print('problem_user_id: ', one['problem_user_id'])
+        one['similar_code'] = ''
+        one['action_list'] = []
+        one['distance'] = -1
+        one['similar_id'] = ''
+        return one
     one['distance'] = min_value
     one['similar_code'] = ac_df['code'].loc[min_id]
     one['action_list'] = action_list
     one['similar_id'] = ac_df['id'].loc[min_id]
     return one
-
-
-def check_group_has_both(df):
-    hasAC = False
-    hasError = False
-
-    res = df['status'].map(lambda x: 1 if x == 1 else 0)
-    if np.sum(res) > 0:
-        hasAC = True
-
-    res = df['status'].map(lambda x: 1 if x == 7 else 0)
-    if np.sum(res) > 0:
-        hasError = True
-    return hasAC & hasError
-
-
-count = 0
-def find_closest_group(one_group: pd.DataFrame):
-    sys.setrecursionlimit(5000)
-    global count, a_tokenize_error_count, ac_df_length_error, distance_series_error
-    current = multiprocessing.current_process()
-    if count % 1 == 0:
-        print('iteration {} in process {} {}:tokenize_error_count: {}, a_tokenize_error_count: {}, '
-              'ac_df_length_error: {}, distance_series_error: {}'.format(count, current.pid, current.name,
-                                                                         tokenize_error_count, a_tokenize_error_count,
-                                                                         ac_df_length_error, distance_series_error))
-    count += 1
-    # if not check_group_has_both(one_group):
-    #     return None
-
-    c_parser = init_pycparser(lexer=BufferedCLex)
-    file_path = '/dev/shm/tmp_file_{}.c'.format(current.pid)
-    one_group['gcc_compile_result'] = one_group['code'].apply(compile_c_code_by_gcc, file_path=file_path)
-    one_group['pycparser_result'] = one_group['code'].apply(parse_c_code_by_pycparser, file_path=file_path, c_parser=c_parser, print_exception=False)
-    one_group['code_without_include'] = one_group['code'].map(remove_include).map(lambda x: x.replace('\r', ''))
-    one_group['tokenize'] = one_group['code_without_include'].apply(tokenize_by_clex, lexer=c_parser.clex)
-    one_group = one_group[one_group['tokenize'].map(lambda x: x is not None)]
-
-    ac_df = one_group[one_group['gcc_compile_result']]
-    error_df = one_group[one_group['gcc_compile_result'].map(lambda x: not x)]
-
-    error_df = error_df.apply(find_closest_token_text, axis=1, raw=True, ac_df=ac_df)
-    # error_df = error_df[error_df['res'].map(lambda x: x is not None)]
-    if 'tokenize' in error_df.columns.values.tolist():
-        error_df = error_df.drop(['tokenize'], axis=1)
-    if 'tokenize' in ac_df.columns.values.tolist():
-        ac_df = ac_df.drop(['tokenize'], axis=1)
-    return error_df, ac_df
 
 
 def left_move_action(i, j, a_token, b_token, value_fn=lambda x: x):
@@ -166,37 +126,6 @@ def create_id(one):
     return problem + '_' + user
 
 
-def deal_action_type(action_list):
-    for action in action_list:
-        action['act_type'] = action['act_type'].value
-    return action_list
-
-
-def transform_data_list(one):
-    item = []
-    item += [one['id']]
-    item += [one['submit_url']]
-    item += [one['problem_id']]
-    item += [one['user_id']]
-    item += [one['problem_user_id']]
-    item += [one['code']]
-    item += [1 if one['gcc_compile_result'] else 0]
-    item += [1 if one['pycparser_result'] else 0]
-    item += [one['similar_code']] if not one['gcc_compile_result'] else ['']
-    action_list = deal_action_type(one['action_list'])
-    item += [json.dumps(action_list)] if not one['gcc_compile_result'] else ['']
-    item += [int(one['distance'])] if not one['gcc_compile_result'] else [-1]
-    return item
-
-
-def group_df_to_grouped_list(data_df, groupby_key):
-    grouped = data_df.groupby(groupby_key)
-    group_list = []
-    for name, group in grouped:
-        group_list += [group]
-    return group_list
-
-
 @disk_cache(basename='init_c_code', directory=CACHE_DATA_PATH)
 def init_c_code(data_df):
     data_df['problem_user_id'] = data_df.apply(create_id, axis=1, raw=True)
@@ -208,46 +137,25 @@ def init_c_code(data_df):
     return data_df
 
 
-def save_train_data(error_df_list, ac_df_list):
-    create_table(TRAIN_DATA_DBPATH, ACTUAL_C_ERROR_RECORDS)
+def filter_repeat_ids(data_df, problem_user_ids):
+    data_df = data_df[data_df['problem_user_id'].map(lambda x: False if x in problem_user_ids else True)]
+    return data_df
+
+
+def save_train_data(error_df_list, ac_df_list, db_path, table_name, transform_fn):
+    create_table(db_path, table_name)
 
     def trans(error_df):
-        res = [transform_data_list(row) for index, row in error_df.iterrows()]
+        res = [transform_fn(row) for index, row in error_df.iterrows()]
         return res
 
     error_items_list = [trans(error_df) for error_df in error_df_list]
     for error_items in error_items_list:
-        insert_items(TRAIN_DATA_DBPATH, ACTUAL_C_ERROR_RECORDS, error_items)
+        insert_items(db_path, table_name, error_items)
     # ac_items_list = [list(ac_df.apply(transform_data_list, raw=True, axis=1)) for ac_df in ac_df_list]
     # for ac_items in ac_items_list:
     #     insert_items(TRAIN_DATA_DBPATH, ACTUAL_C_ERROR_RECORDS, ac_items)
 
-
-if __name__ == '__main__':
-    sys.setrecursionlimit(5000)
-    data_df = read_all_c_records()
-    # data_df = data_df.sample(100000)
-    print('finish read code: {}'.format(len(data_df.index)))
-    data_df = init_c_code(data_df)
-    print('finish init code: {}'.format(len(data_df.index)))
-    # data_df = data_df.sample(10000)
-
-    group_list = group_df_to_grouped_list(data_df, 'problem_user_id')
-    print('group list length: {}'.format(len(group_list)))
-    group_list = list(filter(check_group_has_both, group_list))
-    print('after filter both group list length: {}'.format(len(group_list)))
-    res = list(parallel_map(8, find_closest_group, group_list))
-    # res = [find_closest_group(group) for group in group_list]
-    res = list(filter(lambda x: x is not None, res))
-
-    error_df_list, ac_df_list = list(zip(*res))
-
-    total = 0
-    for df in error_df_list:
-        total += len(df)
-    print('final train code: {}'.format(total))
-    # save records
-    save_train_data(error_df_list, ac_df_list)
 
 
 

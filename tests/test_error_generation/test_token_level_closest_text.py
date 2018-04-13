@@ -3,7 +3,9 @@ import pandas as pd
 import numpy as np
 
 from common.read_data.read_data import read_all_c_records
-from error_generation.token_level_closest_text import find_closest_group, group_df_to_grouped_list, create_id, init_c_code, recovery_code
+from error_generation.token_level_closest_text import create_id, init_c_code, recovery_code
+from common.util import group_df_to_grouped_list
+from error_generation.closest_group_producer import find_closest_group
 
 
 class TestToken_Level_ClosestText(unittest.TestCase):

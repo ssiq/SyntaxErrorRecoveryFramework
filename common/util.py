@@ -17,6 +17,7 @@ import config
 from common.action_constants import ActionType
 from pycparser.pycparser.c_parser import CParser
 from pycparser.pycparser.c_lexer import CLexer
+from common.new_tokenizer import tokenize
 
 
 def maintain_function_co_firstlineno(ori_fn):
@@ -232,10 +233,37 @@ def modify_bias(tokens, position, bias):
 
 def compile_c_code_by_gcc(code, file_path):
     write_code_to_file(code, file_path)
-    res = os.system('gcc -fsyntax-only {} >/dev/null 2>/dev/null'.format(file_path))
+    # res = os.system('gcc -fsyntax-only -pedantic-errors -std=gnu99 {} >/dev/null 2>/dev/null'.format(file_path))
+    res = os.system('gcc -c -pedantic-errors -std=gnu99 {} >/dev/null 2>/dev/null'.format(file_path))
     if res == 0:
         return True
     return False
+
+
+def compile_cpp_code_by_gcc(code, file_path):
+    write_code_to_file(code, file_path)
+    # res = os.system('g++ -c -pedantic-errors -std=gnu99 {} >/dev/null 2>/dev/null'.format(file_path))
+    res = os.system('g++ {} >/dev/null 2>/dev/null'.format(file_path))
+    # res = os.system('g++ {}'.format(file_path))
+    # print('g++ -I/usr/local/include -std=gnu++98 {}'.format(file_path))
+    if res == 0:
+        return True
+    return False
+
+def tokenize_cpp_code_by_new_tokenize(code, print_exception=False):
+    try:
+        if code.find('define') != -1 or code.find('defined') != -1 or code.find('undef') != -1 or \
+                        code.find('pragma') != -1 or code.find('ifndef') != -1 or \
+                        code.find('ifdef') != -1 or code.find('endif') != -1:
+            return None
+        tokens = tokenize(code)
+        if len(tokens) > 2000:
+            return None
+        return tokens
+    except Exception as e:
+        if print_exception:
+            print(e)
+        return None
 
 
 def write_code_to_file(code, file_path):
@@ -433,3 +461,17 @@ def remove_blank(code):
     mat = re.findall(pattern, code)
     processed_code = ' '.join(mat)
     return processed_code
+
+
+def group_df_to_grouped_list(data_df, groupby_key):
+    grouped = data_df.groupby(groupby_key)
+    group_list = []
+    for name, group in grouped:
+        group_list += [group]
+    return group_list
+
+
+def chunks(l, n):
+    """Yield successive n-sized chunks from l."""
+    for i in range(0, len(l), n):
+        yield l[i:i+n]
