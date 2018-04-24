@@ -8,9 +8,13 @@ def filter_distinct_table_key(data_df, key, max_num=None):
     if max_num is None:
         max_num = float('inf')
     group_list = group_df_to_grouped_list(data_df, key)
+    print('group_list', len(group_list))
     num = min(max_num, len(group_list[0]))
     group_res = group_list[0].sample(num).copy(deep=True)
+    i = 0
     for group in group_list[1:]:
+        print('filter_distinct_table_key: {} in {}'.format(i, len(group_list)))
+        i += 1
         num = min(max_num, len(group))
         group_res = group_res.append(group.sample(num), ignore_index=True)
     return group_res

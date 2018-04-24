@@ -1,7 +1,6 @@
-import Levenshtein
 import unittest
 
-from error_generation.levenshtenin_token_level import levenshtenin_distance
+from error_generation.find_closest_group_data.levenshtenin_token_level import levenshtenin_distance
 from common.new_tokenizer import tokenize
 
 class TestLevenshteninTokenLevel(unittest.TestCase):
@@ -474,7 +473,6 @@ int main(){
         import threading
         sys.setrecursionlimit(5000)
         threading.stack_size(2*10**6)
-        threading
 
 
         print('before tokenize')

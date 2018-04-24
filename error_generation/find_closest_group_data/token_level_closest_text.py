@@ -2,8 +2,8 @@ from common.analyse_include_util import check_include_between_two_code
 from common.constants import CACHE_DATA_PATH
 from common.action_constants import ActionType
 from common.util import init_code, check_ascii_character, disk_cache
-from error_generation.levenshtenin_token_level import levenshtenin_distance
-from error_generation.produce_actions import cal_action_list
+from error_generation.find_closest_group_data.levenshtenin_token_level import levenshtenin_distance
+from error_generation.find_closest_group_data.produce_actions import cal_action_list
 from database.database_util import create_table, insert_items
 
 

@@ -8,12 +8,13 @@ import pandas as pd
 
 from common.analyse_include_util import remove_include
 from common.read_data.read_data import read_all_c_records, read_all_cpp_records
-from common.util import tokenize_error_count, init_pycparser, compile_c_code_by_gcc, parse_c_code_by_pycparser, \
+from common.util import tokenize_error_count, init_pycparser, compile_syntax_c_code_by_gcc, parse_c_code_by_pycparser, \
     tokenize_by_clex, parallel_map, compile_cpp_code_by_gcc, tokenize_cpp_code_by_new_tokenize, group_df_to_grouped_list, chunks
-from error_generation.token_level_closest_text import find_closest_token_text, init_c_code, save_train_data, a_tokenize_error_count, ac_df_length_error, distance_series_error, filter_repeat_ids
+from error_generation.find_closest_group_data.token_level_closest_text import find_closest_token_text, init_c_code, save_train_data, \
+    filter_repeat_ids
 from error_recovery.buffered_clex import BufferedCLex
 from common.constants import verdict
-from common.constants import TRAIN_DATA_DBPATH, ACTUAL_C_ERROR_RECORDS, CACHE_DATA_PATH, CPP_TESTCASE_ERROR_RECORDS
+from common.constants import TRAIN_DATA_DBPATH, ACTUAL_C_ERROR_RECORDS, CPP_TESTCASE_ERROR_RECORDS
 from database.database_util import run_sql_select_statment
 
 count = 0
@@ -35,7 +36,7 @@ def find_closest_group(one_group: pd.DataFrame):
 
     c_parser = init_pycparser(lexer=BufferedCLex)
     file_path = '/dev/shm/tmp_file_{}.c'.format(current.pid)
-    one_group['gcc_compile_result'] = one_group['code'].apply(compile_c_code_by_gcc, file_path=file_path)
+    one_group['gcc_compile_result'] = one_group['code'].apply(compile_syntax_c_code_by_gcc, file_path=file_path)
     one_group['pycparser_result'] = one_group['code'].apply(parse_c_code_by_pycparser, file_path=file_path, c_parser=c_parser, print_exception=False)
     one_group['code_without_include'] = one_group['code'].map(remove_include).map(lambda x: x.replace('\r', ''))
     one_group['tokenize'] = one_group['code_without_include'].apply(tokenize_by_clex, lexer=c_parser.clex)

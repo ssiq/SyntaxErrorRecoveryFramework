@@ -2,7 +2,7 @@ import sqlite3
 import pandas as pd
 
 from common.constants import verdict, langdict, scrapyOJ_DB_PATH, CACHE_DATA_PATH, TRAIN_DATA_DBPATH, \
-    ACTUAL_C_ERROR_RECORDS
+    ACTUAL_C_ERROR_RECORDS, COMPILE_SUCCESS_DATA_DBPATH, C_COMPILE_SUCCESS_RECORDS
 from common.util import disk_cache
 
 
@@ -98,6 +98,13 @@ def read_special_cpp_records(problem_id, user_id):
     submit_joined_df = merge_and_deal_submit_table(problems_df, submit_df)
     print('read special problem id {} user id {} with {} records'.format(problem_id, user_id, len(submit_joined_df)))
     return submit_joined_df
+
+
+@disk_cache(basename='read_compile_success_c_records', directory=CACHE_DATA_PATH)
+def read_compile_success_c_records():
+    conn = sqlite3.connect("file:{}?mode=ro".format(COMPILE_SUCCESS_DATA_DBPATH), uri=True)
+    data_df = read_data(conn, C_COMPILE_SUCCESS_RECORDS)
+    return data_df
 
 
 

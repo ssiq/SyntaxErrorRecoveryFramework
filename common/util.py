@@ -231,10 +231,19 @@ def modify_bias(tokens, position, bias):
     return tokens
 
 
-def compile_c_code_by_gcc(code, file_path):
+def compile_syntax_c_code_by_gcc(code, file_path):
     write_code_to_file(code, file_path)
     # res = os.system('gcc -fsyntax-only -pedantic-errors -std=gnu99 {} >/dev/null 2>/dev/null'.format(file_path))
     res = os.system('gcc -c -pedantic-errors -std=gnu99 {} >/dev/null 2>/dev/null'.format(file_path))
+    if res == 0:
+        return True
+    return False
+
+
+def compile_c_code_by_gcc(code, file_path):
+    write_code_to_file(code, file_path)
+    res = os.system('gcc -pedantic-errors -std=gnu99 {} >/dev/null 2>/dev/null'.format(file_path))
+    # res = os.system('gcc -pedantic-errors -std=gnu99 {}'.format(file_path))
     if res == 0:
         return True
     return False
@@ -475,3 +484,8 @@ def chunks(l, n):
     """Yield successive n-sized chunks from l."""
     for i in range(0, len(l), n):
         yield l[i:i+n]
+
+
+def reverse_dict(d):
+    res = dict(zip(d.values(),d.keys()))
+    return res
