@@ -4,6 +4,7 @@ from common.util import disk_cache
 from common.constants import CACHE_DATA_PATH
 
 
+@disk_cache(basename='read_distinct_problem_user_c_records', directory=CACHE_DATA_PATH)
 def read_distinct_problem_user_c_records():
     data_df = read_train_data_all_c_error_records()
     print('origin data size: ', len(data_df))
