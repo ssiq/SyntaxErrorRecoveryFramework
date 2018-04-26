@@ -2,7 +2,8 @@ import sqlite3
 import pandas as pd
 
 from common.constants import verdict, langdict, scrapyOJ_DB_PATH, CACHE_DATA_PATH, TRAIN_DATA_DBPATH, \
-    ACTUAL_C_ERROR_RECORDS, COMPILE_SUCCESS_DATA_DBPATH, C_COMPILE_SUCCESS_RECORDS
+    ACTUAL_C_ERROR_RECORDS, COMPILE_SUCCESS_DATA_DBPATH, C_COMPILE_SUCCESS_RECORDS, FAKE_C_COMPILE_ERROR_DATA_DBPATH, \
+    COMMON_C_ERROR_RECORDS, RANDOM_C_ERROR_RECORDS
 from common.util import disk_cache
 
 
@@ -107,5 +108,16 @@ def read_compile_success_c_records():
     return data_df
 
 
+@disk_cache(basename='read_fake_common_c_error_records', directory=CACHE_DATA_PATH)
+def read_fake_common_c_error_records():
+    conn = sqlite3.connect('file:{}?mode=ro'.format(FAKE_C_COMPILE_ERROR_DATA_DBPATH), uri=True)
+    data_df = read_data(conn, COMMON_C_ERROR_RECORDS)
+    return data_df
 
+
+@disk_cache(basename='read_fake_random_c_error_records', directory=CACHE_DATA_PATH)
+def read_fake_random_c_error_records():
+    conn = sqlite3.connect('file:{}?mode=ro'.format(FAKE_C_COMPILE_ERROR_DATA_DBPATH), uri=True)
+    data_df = read_data(conn, RANDOM_C_ERROR_RECORDS)
+    return data_df
 

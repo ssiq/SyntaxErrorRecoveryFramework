@@ -11,6 +11,7 @@ import more_itertools
 import hashlib
 from multiprocessing import Pool
 import re
+import random
 
 import config
 
@@ -201,6 +202,9 @@ def modify_lex_tokens_offset(ori_tokens: list, action_type, position, token=None
 
 
 def set_token_position_info(tokens, action_type, position, token):
+    if (action_type is ActionType.INSERT_BEFORE or action_type is ActionType.CHANGE) and position == len(tokens):
+        position -= 1
+        action_type = ActionType.INSERT_AFTER
     if position < len(tokens) and action_type is not ActionType.INSERT_AFTER:
         according_token = tokens[position]
         token = set_token_line_pos_accroding_before(according_token, token)
@@ -310,10 +314,20 @@ def init_pycparser(lexer=CLexer):
     c_parser.build(lexer=lexer)
     return c_parser
 
+
+def tokenize_by_clex_fn():
+    from error_recovery.buffered_clex import BufferedCLex
+    c_parser = init_pycparser(lexer=BufferedCLex)
+    def tokenize_fn(code):
+        tokens = tokenize_by_clex(code, c_parser.clex)
+        return tokens
+    return tokenize_fn
+
 tokenize_error_count = 0
 def tokenize_by_clex(code, lexer):
     global tokenize_error_count
     try:
+        lexer.reset_lineno()
         lexer.input(code)
         tokens = list(zip(*lexer._tokens_buffer))[0]
         return tokens
@@ -489,3 +503,15 @@ def chunks(l, n):
 def reverse_dict(d):
     res = dict(zip(d.values(),d.keys()))
     return res
+
+
+def weight_choice(weight):
+    """
+    :param weight: list对应的权重序列
+    :return:选取的值在原列表里的索引
+    """
+    t = random.uniform(0, sum(weight))
+    for i, val in enumerate(weight):
+        t -= val
+        if t < 0:
+            return i

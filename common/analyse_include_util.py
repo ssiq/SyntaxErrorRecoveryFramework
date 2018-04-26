@@ -37,7 +37,7 @@ def analyse_include_line_no(code, include_lines):
 
 def match_one_include_line_no(lines, include_line):
     for i in range(len(lines)):
-        if lines[i] == include_line:
+        if lines[i].strip() == include_line.strip():
             return i
     print('match one include line no error. lines: {}, include_line:{}'.format(lines, include_line))
     return None
