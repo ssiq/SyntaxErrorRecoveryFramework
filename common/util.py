@@ -253,6 +253,15 @@ def compile_c_code_by_gcc(code, file_path):
     return False
 
 
+def compile_c_code_by_gcc_c89(code, file_path):
+    write_code_to_file(code, file_path)
+    res = os.system('gcc -pedantic-errors -std=gnu89 {} >/dev/null 2>/dev/null'.format(file_path))
+    # res = os.system('gcc -pedantic-errors -std=gnu89 {}'.format(file_path))
+    if res == 0:
+        return True
+    return False
+
+
 def compile_cpp_code_by_gcc(code, file_path):
     write_code_to_file(code, file_path)
     # res = os.system('g++ -c -pedantic-errors -std=gnu99 {} >/dev/null 2>/dev/null'.format(file_path))
