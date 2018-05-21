@@ -1,7 +1,7 @@
 from common.read_data.read_data import read_train_data_effect_all_c_error_records, read_train_data_all_c_error_records, \
     read_compile_success_c_records, read_fake_common_c_error_records, read_fake_random_c_error_records
 from common.filter_test_set import filter_distinct_problem_user_id
-from common.util import disk_cache
+from common.util import disk_cache, compile_c_code_by_gcc_c89
 from common.constants import CACHE_DATA_PATH
 
 
@@ -14,6 +14,30 @@ def read_distinct_problem_user_c_records():
     data_df = filter_distinct_problem_user_id(data_df)
     print('after filter distinct problem user size: ', len(data_df))
     return data_df
+
+
+@disk_cache(basename='read_read_distinct_problem_user_c_records_less_10_error_and_c89', directory=CACHE_DATA_PATH)
+def read_read_distinct_problem_user_c_records_less_10_error_and_c89():
+    df = read_distinct_problem_user_c_records()
+    df = df[df['distance'].map(lambda x: 0 < x < 10)]
+    total = len(df)
+    print(total)
+    count = 0
+
+    def compile_c89(code):
+        nonlocal count
+        print('now {}/{}'.format(count, total))
+        count += 1
+        file_path = '/dev/shm/a.c'
+        res = compile_c_code_by_gcc_c89(code, file_path)
+        return res
+
+    df = df[df['similar_code'].map(compile_c89)]
+    success_count = len(df)
+    count = 0
+    df = df[df['code'].map(lambda x: not compile_c89(x))]
+    print('after success {} after failed: {}'.format(success_count, len(df)))
+    return df
 
 
 @disk_cache(basename='read_distinct_problem_user_compile_success_c_records', directory=CACHE_DATA_PATH)
@@ -61,4 +85,6 @@ def read_distinct_problem_user_fake_c_common_records():
 
 
 if __name__ == '__main__':
-    df = read_distinct_problem_user_ac_c_records_filter_error_code()
+    # df = read_distinct_problem_user_ac_c_records_filter_error_code()
+    df = read_read_distinct_problem_user_c_records_less_10_error_and_c89()
+    print(len(df))
