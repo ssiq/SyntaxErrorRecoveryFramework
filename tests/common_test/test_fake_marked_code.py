@@ -84,27 +84,20 @@ class Test_Fake_Marked_Code(unittest.TestCase):
         # res = self.c_parser.parse(self.sources[0])
 
         code = r'''
-        
-        
-        int func(int a, ...){
-            return 0;
-        }
-        
         int main(){
-            int a=0, b=0;
-            func(a, b);
+            a=b+c;
         }
         '''
         res = self.c_parser.parse(code)
-        self.c_parser.clex.input(code)
-        tokens = list(zip(*self.c_parser.clex._tokens_buffer))[0]
+        # self.c_parser.clex.input(code)
+        # tokens = list(zip(*self.c_parser.clex._tokens_buffer))[0]
 
         # headers = []
         # header_names = []
         # # self.ori_mark_code = MarkedCode(headers, header_names, [code], ['main.c'])
         # self.ori_tokens = tokenize_marked_preprocessed_code(self.c_parser.clex, self.ori_mark_code)
         print(res)
-        print(tokens)
+        # print(tokens)
         pass
 
 

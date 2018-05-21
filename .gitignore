@@ -18,4 +18,10 @@ utils/z.c
 *.egg-info
 tmp/
 
+*.db
+*.pickle
+config.py
+test.c
+
+
 
