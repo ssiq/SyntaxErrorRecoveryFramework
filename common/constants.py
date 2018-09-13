@@ -26,6 +26,7 @@ CPP_TESTCASE_ERROR_RECORDS = 'cpp_testcase_error_records'
 C_COMPILE_SUCCESS_RECORDS = 'c_compile_success_records'
 COMMON_C_ERROR_RECORDS = 'common_c_error_records'
 RANDOM_C_ERROR_RECORDS = 'random_c_error_records'
+PROBLEM_TESTCASE = 'problem_testcase'
 
 
 # code status and language transform dict
